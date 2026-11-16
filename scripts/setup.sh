@@ -119,12 +119,12 @@ bold "6/6  LINE webhook"
 LINE_CHANNEL_ACCESS_TOKEN="$(getenv LINE_CHANNEL_ACCESS_TOKEN)" node scripts/set-webhook.js "$URL/webhook" || note "Set it by hand: $URL/webhook"
 
 bold "Check the Sheet connection"
-if curl -fsS "$URL/healthz" >/dev/null 2>&1; then
+if curl -fsS "$URL/health" >/dev/null 2>&1; then
   note "✓ the bot can open the Sheet and has created its tabs"
 else
   note "✗ the bot cannot open the Sheet yet. Ask the Sheet owner to Share it with"
   note "    $SA"
-  note "  as Editor, then open $URL/healthz to check."
+  note "  as Editor, then open $URL/health to check."
 fi
 
 bold "Almost done. In the browser:"

@@ -82,7 +82,7 @@ key, and the Sheet.
    ./scripts/setup.sh
    ```
    The script asks for the values above, enables the APIs, creates the service account `norse-bot@<project>.iam.gserviceaccount.com`, deploys to Cloud Run, creates the hourly job and sets the LINE webhook.
-5. **Share the Sheet**: your friend shares it with that service-account email as **Editor**. Check `<URL>/healthz`.
+5. **Share the Sheet**: the Sheet's owner shares it with that service-account email as **Editor** (untick *Notify people*). Then open `<URL>/health`: it should say `"ok":true`. (Cloud Run reserves paths ending in `z`, so it is not `/healthz`.)
 6. **LINE settings**:
    - Developers console: turn on **Use webhook** and **Allow bot to join group chats**.
    - Official Account Manager: turn off **auto-reply** and **greeting** messages.
@@ -94,7 +94,7 @@ Re-run `./scripts/setup.sh` to deploy new code.
 
 ```bash
 npm install
-npm test          # 25 tests, no network
+npm test          # 29 tests, no network
 npm run preview   # cards.html: rough preview of every card with sample data
 ```
 
@@ -110,6 +110,7 @@ Without `SHEET_ID` the bot uses an in-memory sheet (data is lost on restart).
 - `src/ai/`: Gemini / Claude providers, model fallback, usage counter, prompt + JSON schema
 - `src/sheets.js`, `src/team.js`: the Sheet as a database; members and tasks
 - `src/line.js`: replies, counted pushes, @mentions
+- `src/app.js`: HTTP routes (`/webhook`, `/health`, `/cron/tick`); `src/index.js` wires it all up
 
 ## Next (MVP 2–3)
 
