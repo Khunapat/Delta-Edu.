@@ -15,7 +15,7 @@ test('linking: only team names, one LINE account per name', async () => {
 
 test('group: only an admin can register; normal chatter is ignored', async () => {
   const w = await makeWorld({ link: false });
-  await w.dm('Best', 'ฉันคือ Best');
+  assert.match(flat(await w.dm('Best', 'ฉันคือ Best')), /ยังไม่ได้ตั้งกลุ่มทีม/, 'only an admin links before the group exists');
   assert.match(flat(await w.say('Best', 'ใช้กลุ่มนี้')), /admin/);
   await w.dm('Jai', 'ฉันคือ Jai');
   assert.match(flat(await w.say('Jai', 'ใช้กลุ่มนี้')), /ตั้งกลุ่มนี้เป็นกลุ่มทีมแล้ว/);
@@ -146,4 +146,50 @@ test('blocker typed after tapping ติดอยู่', async () => {
   const x = await w.team.task(t.id);
   assert.equal(x.status, 'blocked');
   assert.equal(x.blocker, 'กล้องเสีย');
+});
+
+test('team only: before the group exists only an admin links; after, only people in the team group', async () => {
+  const w = await makeWorld({ link: false });
+  w.client.groupMembers = new Map([['Cteam', new Set(['Ujai', 'Ubest', 'Ubonnie'])]]);
+  assert.match(flat(await w.dm('Ustranger', 'ฉันคือ Best')), /ยังไม่ได้ตั้งกลุ่มทีม/);
+  assert.equal((await w.team.memberByName('Best')).line_user_id, '');
+  assert.match(flat(await w.dm('Jai', 'ฉันคือ เจ')), /เชื่อมแล้ว/, 'admin links by alias');
+  assert.match(flat(await w.say('Jai', 'ใช้กลุ่มนี้')), /ตั้งกลุ่มนี้เป็นกลุ่มทีมแล้ว/);
+  assert.match(flat(await w.dm('Ustranger', 'ฉันคือ Bonnie')), /เฉพาะคนในกลุ่มทีม/);
+  assert.equal((await w.team.memberByName('Bonnie')).line_user_id, '', 'stranger not linked');
+  assert.match(flat(await w.dm('Ustranger', 'งานทีม')), /ฉันคือ/, 'stranger sees nothing');
+  assert.match(flat(await w.dm('Bonnie', 'ฉันคือ บอนนี่')), /เชื่อมแล้ว สวัสดี Bonnie/);
+  // LINE can't be asked: refuse for now instead of letting anyone in
+  w.client.getGroupMemberProfile = async () => { throw Object.assign(new Error('boom'), { status: 500 }); };
+  assert.match(flat(await w.dm('Best', 'ฉันคือ Best')), /ลองใหม่/);
+  assert.equal((await w.team.memberByName('Best')).line_user_id, '');
+});
+
+test('the team group cannot be moved from another group', async () => {
+  const w = await makeWorld();
+  await w.bot.handle({ type: 'message', replyToken: 'r', source: { type: 'group', groupId: 'Cother', userId: 'Ujai' },
+    message: { type: 'text', text: '@Norse ใช้กลุ่มนี้', mention: { mentionees: [{ index: 0, length: 6, isSelf: true, type: 'user' }] } } });
+  assert.match(flat(w.client.lastReply()), /มีกลุ่มทีมอยู่แล้ว/);
+  assert.equal(await w.db.kvGet('team_group'), 'Cteam');
+});
+
+test('a typed answer only counts in the chat where the bot asked', async () => {
+  const w = await makeWorld();
+  const [t] = await w.team.createTasks([{ title: 'ถ่ายรูปสินค้า', owners: ['Jai'], due: '2026-11-19' }], 'Jai');
+  await w.tap('Jai', `a=tb&t=${t.id}`); // asked in 1:1
+  const before = w.client.replies.length;
+  await w.say('Jai', 'กินข้าวยังทุกคน', false); // normal group chatter
+  assert.equal(w.client.replies.length, before, 'group chatter ignored');
+  assert.equal((await w.team.task(t.id)).status, 'todo');
+  await w.dm('Jai', 'กล้องเสีย');
+  assert.equal((await w.team.task(t.id)).blocker, 'กล้องเสีย');
+});
+
+test('TEAM_SEED carries aliases and roles', async () => {
+  const w = await makeWorld({ link: false });
+  const ms = await w.team.members();
+  assert.deepEqual(ms.map((m) => [m.nickname, m.aliases, m.admin]), [
+    ['Jai', ['เจ'], true], ['Best', ['เบสท์'], false], ['Bonnie', ['บอนนี่'], false],
+  ]);
+  assert.equal((await w.team.memberByName('พี่บอนนี่')).nickname, 'Bonnie');
 });

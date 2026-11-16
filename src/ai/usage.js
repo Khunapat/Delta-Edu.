@@ -7,8 +7,8 @@
  * Free-tier daily quotas reset at midnight Pacific time; that is the "day"
  * used for counting, regardless of the bot's own time zone.
  *
- * Counts live in memory and are flushed to a small JSON doc in the owner's
- * Drive (debounced) so a Cloud Run restart does not zero them.
+ * Counts live in memory and are flushed (debounced) to the Sheet's Kv tab so
+ * a Cloud Run restart does not zero them.
  */
 
 const RESET_ZONE = 'America/Los_Angeles';

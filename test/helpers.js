@@ -7,16 +7,23 @@ import { Scheduler } from '../src/scheduler.js';
 import { loadConfig } from '../src/config.js';
 
 export class FakeLineClient {
-  constructor() { this.replies = []; this.pushes = []; }
+  constructor() {
+    this.replies = []; this.pushes = [];
+    this.groupMembers = null; // Map groupId -> Set(userId); null = everyone is in every group
+    this.lineQuota = null;    // { limit, used } to act like LINE's own count; null = offline
+  }
   async replyMessage(r) { this.replies.push(r); }
   async pushMessage(r) { this.pushes.push(r); }
   async getGroupMemberCount() { return { count: 3 }; }
   async getRoomMemberCount() { return { count: 3 }; }
-  async getMessageQuota() { throw new Error('offline'); }
-  async getMessageQuotaConsumption() { throw new Error('offline'); }
+  async getMessageQuota() { if (!this.lineQuota) throw new Error('offline'); return { type: 'limited', value: this.lineQuota.limit }; }
+  async getMessageQuotaConsumption() { if (!this.lineQuota) throw new Error('offline'); return { totalUsage: this.lineQuota.used }; }
   async showLoadingAnimation() {}
   async getProfile() { return { displayName: 'x' }; }
-  async getGroupMemberProfile() { return { displayName: 'x' }; }
+  async getGroupMemberProfile(groupId, userId) {
+    if (this.groupMembers && !this.groupMembers.get(groupId)?.has(userId)) throw Object.assign(new Error('Not found'), { status: 404 });
+    return { displayName: 'x' };
+  }
   lastReply() { return this.replies.at(-1)?.messages || []; }
 }
 
@@ -35,8 +42,8 @@ export class FakeProvider {
 }
 
 /** A team of 3, linked, with the group registered. Clock fixed at Mon 16 Nov 2026 09:00 Bangkok. */
-export async function makeWorld({ now = new Date('2026-11-16T02:00:00Z'), link = true } = {}) {
-  const cfg = loadConfig({ BOT_NAME: 'Norse', CRON_SECRET: 's', TEAM_SEED: 'Jai:admin, Best, Bonnie' });
+export async function makeWorld({ now = new Date('2026-11-16T02:00:00Z'), link = true, seed = 'Jai/เจ:admin, Best/เบสท์, Bonnie/บอนนี่' } = {}) {
+  const cfg = loadConfig({ BOT_NAME: 'Norse', CRON_SECRET: 's', TEAM_SEED: seed });
   const backend = new MemoryBackend();
   let clock = now.getTime();
   const db = new Db(backend, { ttlMs: 0, clock: () => clock });
@@ -44,7 +51,7 @@ export async function makeWorld({ now = new Date('2026-11-16T02:00:00Z'), link =
   const team = new Team(db, { timeZone: cfg.timeZone, now: () => new Date(clock) });
   await team.seedMembers(cfg.teamSeed);
   const client = new FakeLineClient();
-  const line = new Line({ client, db, monthlyLimit: 300, timeZone: cfg.timeZone });
+  const line = new Line({ client, db, monthlyLimit: 300, timeZone: cfg.timeZone, now: () => new Date(clock) });
   const provider = new FakeProvider();
   const ai = new Ai({ cfg, db, provider });
   const bot = new Bot({ cfg, db, team, line, ai });
@@ -68,8 +75,10 @@ export async function makeWorld({ now = new Date('2026-11-16T02:00:00Z'), link =
     },
   };
   if (link) {
-    for (const n of ['Jai', 'Best', 'Bonnie']) await w.dm(n, `ฉันคือ ${n}`);
+    // Real order: the admin links, sets the team group, then the others link.
+    await w.dm('Jai', 'ฉันคือ Jai');
     await w.say('Jai', 'ใช้กลุ่มนี้');
+    for (const n of ['Best', 'Bonnie']) await w.dm(n, `ฉันคือ ${n}`);
   }
   client.replies.length = 0;
   return w;

@@ -41,11 +41,13 @@ export class Team {
     if (!n) return null;
     return (await this.members()).find((m) => normName(m.nickname) === n || m.aliases.some((a) => normName(a) === n)) || null;
   }
+  /** First start only. Each entry: "Nick[/alias/alias][:role]", e.g. "Bonnie/บอนนี่" or "Jai/เจ:admin". */
   async seedMembers(seed) {
     if (!seed?.length || (await this.members()).length) return 0;
     const rows = seed.map((s) => {
-      const [nick, role = ''] = s.split(':').map((x) => x.trim());
-      return { nickname: nick, role };
+      const [names, role = ''] = s.split(':').map((x) => x.trim());
+      const [nick, ...aliases] = names.split('/').map((x) => x.trim()).filter(Boolean);
+      return { nickname: nick || '', aliases: aliases.join(', '), role };
     }).filter((r) => r.nickname);
     await this.db.insert('Members', rows);
     return rows.length;

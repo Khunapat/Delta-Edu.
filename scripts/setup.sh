@@ -58,7 +58,7 @@ if [ -z "$(getenv SHEET_ID)" ]; then
   v="$(printf '%s' "$v" | sed -E 's#.*/spreadsheets/d/([^/]+).*#\1#')"
   [ -n "$v" ] || die "SHEET_ID is required."; setenv SHEET_ID "$v"
 fi
-ask TEAM_SEED      "Team nicknames, admin first, e.g. 'Jai:admin, Best, Bonnie'"
+ask TEAM_SEED      "Team nicknames with other spellings, admin marked, e.g. 'Jai/เจ:admin, Best/เบสท์, Bonnie/บอนนี่'"
 ask GEMINI_API_KEY "Gemini API key (free: https://aistudio.google.com/apikey), Enter to skip" secret optional
 ask ANTHROPIC_API_KEY "Claude API key (paid, optional), Enter to skip" secret optional
 [ -n "$(getenv BOT_NAME)" ]      || setenv BOT_NAME "Norse"
@@ -95,13 +95,13 @@ note "URL: $URL"
 bold "5/6  Hourly scheduler job (one job = free tier)"
 HDR="X-Cron-Secret=$(getenv CRON_SECRET)"
 if gcloud scheduler jobs describe "$JOB" --location "$REGION" >/dev/null 2>&1; then
-  gcloud scheduler jobs update http "$JOB" --location "$REGION" --schedule "30 7-21 * * *" --time-zone "Asia/Bangkok" \
+  gcloud scheduler jobs update http "$JOB" --location "$REGION" --schedule "0 7-21 * * *" --time-zone "Asia/Bangkok" \
     --uri "$URL/cron/tick" --http-method POST --update-headers "$HDR" >/dev/null
 else
-  gcloud scheduler jobs create http "$JOB" --location "$REGION" --schedule "30 7-21 * * *" --time-zone "Asia/Bangkok" \
+  gcloud scheduler jobs create http "$JOB" --location "$REGION" --schedule "0 7-21 * * *" --time-zone "Asia/Bangkok" \
     --uri "$URL/cron/tick" --http-method POST --headers "$HDR" >/dev/null
 fi
-note "$JOB: every hour at :30 from 07:30 to 21:30 Bangkok time"
+note "$JOB: every hour on the hour from 07:00 to 21:00 Bangkok time"
 
 bold "6/6  LINE webhook"
 LINE_CHANNEL_ACCESS_TOKEN="$(getenv LINE_CHANNEL_ACCESS_TOKEN)" node scripts/set-webhook.js "$URL/webhook" || note "Set it by hand: $URL/webhook"
@@ -119,5 +119,6 @@ bold "Almost done. In the browser:"
 note "1. LINE Developers > Messaging API: turn ON 'Use webhook' and 'Allow bot to join group chats'."
 note "2. LINE Official Account Manager > Response settings: turn OFF auto-reply and greeting messages."
 note "3. Share the Sheet with $SA as Editor (if not done)."
-note "4. Add the bot to the team LINE group; the admin types:  @$(getenv BOT_NAME) ใช้กลุ่มนี้"
-note "5. Everyone adds the bot as a friend and sends:  ฉันคือ <ชื่อเล่น>"
+note "4. The admin adds the bot as a friend and sends:  ฉันคือ <ชื่อเล่น>"
+note "5. Add the bot to the team LINE group; the admin types:  @$(getenv BOT_NAME) ใช้กลุ่มนี้"
+note "6. Everyone else adds the bot as a friend and sends:  ฉันคือ <ชื่อเล่น>"

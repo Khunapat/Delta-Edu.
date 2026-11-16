@@ -81,3 +81,35 @@ test('push budget: group push costs one per member and stops near the limit', as
   assert.equal(await w.db.kvGet(w.line.monthKey()), 10);
   assert.equal(await w.line.push('Ubest', { type: 'text', text: 'x' }, { essential: true }), false, 'hard limit');
 });
+
+test('push budget follows LINE\'s own count and limit, never ours alone', async () => {
+  const w = await makeWorld();
+  w.client.lineQuota = { limit: 300, used: 268 }; // e.g. a broadcast sent from OA Manager
+  assert.equal(await w.line.push('Ubest', { type: 'text', text: 'x' }), true, '269 <= 270');
+  w.line.lineCount = null;
+  w.client.lineQuota = { limit: 300, used: 269 };
+  assert.equal(await w.line.push('Cteam', { type: 'text', text: 'x' }), false, '272 > 90% even though our count is 1');
+  w.line.lineCount = null;
+  w.client.lineQuota = { limit: 200, used: 10 }; // LINE's quota is lower than PUSH_MONTHLY_LIMIT
+  assert.equal((await w.line.quota()).limit, 200);
+  w.line.lineCount = null;
+  w.client.lineQuota = { limit: 300, used: 299 };
+  assert.equal(await w.line.push('Ubest', { type: 'text', text: 'x' }, { essential: true }), true, 'essential may use the last push');
+  assert.equal(await w.line.push('Ubest', { type: 'text', text: 'x' }, { essential: true }), false, 'cached LINE count went up by 1: 300 is the hard stop');
+});
+
+test('18:00 round-up is low priority: it waits when the month is ahead of pace', async () => {
+  const w = await makeWorld(); // 16 Nov: pace = 90% of 300 x 16/30 = 144
+  const six = new Date('2026-11-16T11:00:00Z'); // 18:00 Bangkok
+  w.setNow(six);
+  await w.bot.queueNotice('✓ Jai · mockup');
+  await w.db.kvSet(w.line.monthKey(), 142);
+  let r = await w.scheduler.tick({ now: six });
+  assert.equal(r.ran[0].sent, false, '142 + 3 > 144');
+  assert.deepEqual(await w.db.kvGet('group_notices'), ['✓ Jai · mockup'], 'kept for the next free reply');
+  assert.equal(await w.line.push('Cteam', { type: 'text', text: 'x' }), true, 'normal pushes still go (145 <= 270)');
+  await w.db.kvSet(w.line.monthKey(), 100);
+  r = await w.scheduler.tick({ now: six, force: 'evening' });
+  assert.equal(r.ran[0].sent, true);
+  assert.match(flat(w.client.pushes.at(-1)), /mockup/);
+});

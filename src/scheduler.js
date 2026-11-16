@@ -5,7 +5,9 @@
 //            + one gentle group tag for tasks overdue >= 2 days
 //   monday   plan for the week + milestones   (group)
 //   friday   done / late / blocked            (group)
-//   evening  ✓ round-up, if nothing carried it earlier (group)
+//   evening  ✓ round-up, if nothing carried it earlier (group). Low priority:
+//            when the push budget is ahead of pace the lines wait for the next
+//            free reply in the group or the next evening.
 
 import { addDays, diffDays, formatDay, relDays, weekStart, zonedClock } from './dates.js';
 import { ownersOf, byDue } from './team.js';
@@ -161,7 +163,7 @@ export class Scheduler {
     if (!group) return { skipped: 'no group' };
     const text = await this.bot.takeNotices();
     if (!text) return { sent: false };
-    const ok = await this.line.push(group, F.textMsg(`วันนี้เสร็จแล้ว 🎉\n${text}`), { kind: 'evening' });
+    const ok = await this.line.push(group, F.textMsg(`วันนี้เสร็จแล้ว 🎉\n${text}`), { kind: 'evening', low: true });
     if (!ok) await this.bot.queueNotice(text);
     return { sent: ok };
   }

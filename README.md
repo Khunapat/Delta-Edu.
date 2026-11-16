@@ -14,14 +14,14 @@ look of the NORSE Project Overview dashboard.
 | `@Norse บอนนี่ กับ เจ ทำ mockup กล่อง ส่งศุกร์` | A card with owners, due date and workstream, with **ยืนยัน · วันส่ง · คนทำ · ชื่องาน · หมวด · ยกเลิก**. Nothing is saved until someone taps ยืนยัน. Unknown names and unclear dates ("อาทิตย์หน้า") are asked about; the bot never guesses an owner or a date. |
 | `@Norse งานทีม` | Done / in progress / overdue / blocked tiles, who is on what, and the risk list. No AI. |
 | `@Norse <question>` | Answered from the Sheet only; says so when there is no record. |
-| `@Norse ใช้กลุ่มนี้` | (admin, once) makes this the team group. Other groups are ignored. |
+| `@Norse ใช้กลุ่มนี้` | (admin, once) makes this the team group. Other groups are ignored, and can't take over the role (to move it, delete the `team_group` row in the Kv tab first). |
 | `@Norse ตั้งค่า` | AI use per model today, reset time, LINE pushes used this month. |
 
 **1:1 chat**
 
 | Type / tap | What happens |
 | --- | --- |
-| `ฉันคือ บอนนี่` | Links your LINE account to your team nickname (once). Only names in the Members tab can link. |
+| `ฉันคือ บอนนี่` | Links your LINE account to your team nickname or alias (once). See **Team only** below. |
 | `งานฉัน` | Your open tasks by due date, each with **เสร็จแล้ว ✓ · ขอเลื่อน (date picker) · ติดอยู่**. |
 | `mockup เสร็จแล้ว` · `ขอเลื่อนเป็นจันทร์` · `ติด supplier ยังไม่ตอบ` | Updated without AI when it's clear which task you mean; otherwise you get buttons to pick the task. |
 | `วันนี้ทำอะไรดี` | Today / overdue / due soon / blocked. |
@@ -29,7 +29,7 @@ look of the NORSE Project Overview dashboard.
 The group only sees the result: a **✓ line** (sent with the bot's next group
 reply, or in the 18:00 round-up) or the **🚧 blocked line** asking who can help.
 
-**Reminders** (one hourly Cloud Scheduler job)
+**Reminders** (one Cloud Scheduler job, every hour on the hour from 07:00 to 21:00 Bangkok time)
 
 - 08:00 private DM, **at most one push per person per day**: new tasks, due in 5/3/1 days, due today (with buttons), overdue.
 - A new task also sends a DM right away, unless that person already got a push that day.
@@ -42,14 +42,27 @@ all are used up, the bot says when the AI is back, and commands and buttons
 keep working.
 
 **Push budget**: LINE's Thai free plan allows 300 pushes a month, and a push to
-a 3-person group counts as 3. Pushes are counted. Non-urgent ones stop at 90%
-of the allowance; all stop at 100%.
+a 3-person group counts as 3. Before every push the bot takes the higher of its
+own count and LINE's (LINE's also includes anything sent from OA Manager), and
+the lower of `PUSH_MONTHLY_LIMIT` and LINE's own quota, so it never goes over:
+
+- 🚧 blocked lines stop at 100%;
+- digests, new-task DMs, the overdue tag and the weekly posts stop at 90%;
+- the 18:00 ✓ round-up also waits when the month is ahead of pace (more than
+  90% × day-of-month / days-in-month used). Its ✓ lines are kept and ride on
+  the next free group reply instead.
+
+**Team only**: the bot is a public LINE account, so a nickname alone is not
+enough to get in. Before the team group exists, only an admin can link
+(`ฉันคือ Jai`), so do that right after deploying. After `@Norse ใช้กลุ่มนี้`,
+`ฉันคือ …` only works for people who are in the team group (LINE is asked
+each time). Each nickname links to one LINE account.
 
 ## The Sheet
 
 The bot creates these tabs on first start (an empty Sheet is fine):
 
-- **Members**: `nickname, aliases, role, line_user_id, …`. Put `admin` in *role* for admins. *aliases* holds other spellings (e.g. `บอนนี่`). Contact columns are never shown in the group or sent to the AI.
+- **Members**: `nickname, aliases, role, line_user_id, …`. Put `admin` in *role* for admins. *aliases* holds other spellings, comma-separated (e.g. `บอนนี่`); without them "@Norse บอนนี่ ทำ …" can't find Bonnie. On first start the tab is filled from `TEAM_SEED`, written `Nick/alias/alias:role`, e.g. `Jai/เจ:admin, Best/เบสท์, Bonnie/บอนนี่`. To re-link someone (new phone or account), clear their `line_user_id`. Contact columns are never shown in the group or sent to the AI.
 - **Tasks**: same fields as the dashboard (`title, owner, stream, status, priority, start, due, blocker, …`). You can edit rows by hand: keep `status` to todo / doing / blocked / done, and dates as `2026-11-20` or `20/11/2026`.
 - **Milestones**: `title, date, stream, done`.
 - **Kv**, **Log**: the bot's own bookkeeping. Leave them alone.
@@ -73,7 +86,7 @@ key, and the Sheet.
 6. **LINE settings**:
    - Developers console: turn on **Use webhook** and **Allow bot to join group chats**.
    - Official Account Manager: turn off **auto-reply** and **greeting** messages.
-7. Add the bot to the team group. The admin types `@Norse ใช้กลุ่มนี้`. Everyone adds the bot as a friend and sends `ฉันคือ <ชื่อเล่น>`.
+7. In this order: the admin adds the bot as a friend and sends `ฉันคือ <ชื่อเล่น>`; adds the bot to the team group and types `@Norse ใช้กลุ่มนี้`; then everyone else adds the bot as a friend and sends `ฉันคือ <ชื่อเล่น>`.
 
 Re-run `./scripts/setup.sh` to deploy new code.
 
@@ -81,7 +94,7 @@ Re-run `./scripts/setup.sh` to deploy new code.
 
 ```bash
 npm install
-npm test          # 19 tests, no network
+npm test          # 25 tests, no network
 npm run preview   # cards.html: rough preview of every card with sample data
 ```
 

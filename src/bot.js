@@ -72,7 +72,7 @@ export class Bot {
 
     // Waiting for a typed answer from this person (e.g. a new task title)?
     if (!botMentioned) {
-      if (c.isTeamGroup && c.member && await this.peekAwait(c.uid)) return this.onAwaited(c, msg.text);
+      if (c.isTeamGroup && c.member && await this.peekAwait(c)) return this.onAwaited(c, msg.text);
       return; // ignore normal chatter: no AI, no reply
     }
 
@@ -102,6 +102,10 @@ export class Bot {
     if (!c.member?.admin) {
       return this.reply(c, F.textMsg(`ต้องเป็น admin ของทีม (คอลัมน์ role = admin ในแท็บ Members) และเชื่อม LINE แล้ว ถึงจะตั้งกลุ่มได้`));
     }
+    // Only one team group, and it can't be moved from another group by chat.
+    if (c.teamGroupSet && !c.isTeamGroup) {
+      return this.reply(c, F.textMsg('มีกลุ่มทีมอยู่แล้ว ถ้าจะย้ายกลุ่มจริงๆ ให้ admin ลบแถว team_group ในแท็บ Kv ของชีตก่อน แล้วพิมพ์ใหม่ในกลุ่มใหม่'));
+    }
     await this.db.kvSet('team_group', c.groupId);
     await this.db.log(c.member.nickname, c.groupId, 'register_group');
     c.isTeamGroup = true;
@@ -116,7 +120,7 @@ export class Bot {
     if (cmd?.cmd === 'link') return this.link(c, cmd.name);
     if (!c.member) return this.reply(c, F.textMsg('ยังไม่รู้จักกัน 🙂 พิมพ์ "ฉันคือ <ชื่อเล่นในทีม>" ก่อนนะ (ใช้ได้เฉพาะคนในทีม NORSE)'));
 
-    if (await this.peekAwait(c.uid)) {
+    if (await this.peekAwait(c)) {
       if (!cmd) return this.onAwaited(c, text);
       await this.db.kvDel('await:' + c.uid);
     }
@@ -136,6 +140,18 @@ export class Bot {
 
   async link(c, name) {
     if (c.chat !== 'direct') return this.reply(c, F.textMsg('เชื่อมบัญชีในแชทส่วนตัวนะ'));
+    // Team only: the bot is a public LINE account, so knowing a nickname is not enough.
+    // Before the team group exists only an admin can link (to set the group up);
+    // after that, only people who are in the team group.
+    const group = await this.db.kvGet('team_group', '');
+    if (group) {
+      const inGroup = await this.line.isGroupMember(group, c.uid);
+      if (inGroup === null) return this.reply(c, F.textMsg('ตอนนี้เช็กกับ LINE ไม่ได้ ลองใหม่อีกสักครู่นะ'));
+      if (!inGroup) return this.reply(c, F.textMsg('ใช้ได้เฉพาะคนในกลุ่มทีม NORSE นะ ให้เพื่อนในทีมชวนเข้ากลุ่มก่อน แล้วค่อยพิมพ์ "ฉันคือ <ชื่อเล่น>" อีกครั้ง'));
+    } else {
+      const m = await this.team.memberByName(name);
+      if (m && !m.admin) return this.reply(c, F.textMsg(`ตอนนี้ยังไม่ได้ตั้งกลุ่มทีม ให้ admin เชื่อมบัญชีและพิมพ์ "@${this.name} ใช้กลุ่มนี้" ในกลุ่มก่อน แล้วค่อยพิมพ์ "ฉันคือ ${m.nickname}" อีกครั้งนะ`));
+    }
     const r = await this.team.link(name, c.uid);
     if (!r.ok && r.reason === 'unknown') return this.reply(c, F.textMsg(`ไม่เจอ "${name}" ในรายชื่อทีม ลองชื่อเล่นที่ใช้ในทีม หรือให้ admin เพิ่มชื่อในแท็บ Members ก่อนนะ`));
     if (!r.ok && r.reason === 'taken') return this.reply(c, F.textMsg(`ชื่อ ${r.member.nickname} เชื่อมกับ LINE อีกบัญชีไปแล้ว ถ้าเปลี่ยนเครื่อง/บัญชี ให้ admin ล้างช่อง line_user_id ในแท็บ Members ก่อน`));
@@ -427,7 +443,7 @@ export class Bot {
   }
 
   async askBlocker(c, task) {
-    await this.db.kvSet('await:' + c.uid, { type: 'blocker', taskId: task.id, at: Date.now() });
+    await this.db.kvSet('await:' + c.uid, { type: 'blocker', taskId: task.id, chat: c.chatId, at: Date.now() });
     return this.reply(c, F.textMsg(`"${task.title}" ติดอะไรอยู่? พิมพ์สั้นๆ ได้เลย`, F.quickReply([
       F.postback('รอ supplier', `a=tbr&t=${task.id}&r=${encodeURIComponent('รอ supplier ตอบ')}`, 'รอ supplier ตอบ'),
       F.postback('รอข้อมูล', `a=tbr&t=${task.id}&r=${encodeURIComponent('รอข้อมูล')}`, 'รอข้อมูล'),
@@ -447,15 +463,17 @@ export class Bot {
 
   // ======================================================================
   // Typed answers we asked for (blocker reason, new title, workstream)
-  async peekAwait(uid) {
-    const a = await this.db.kvGet('await:' + uid, null);
+  /** The typed answer we are waiting for from this person, only in the chat where we asked. */
+  async peekAwait(c) {
+    const a = await this.db.kvGet('await:' + c.uid, null);
     if (!a) return null;
-    if (Date.now() - (a.at || 0) > AWAIT_TTL_MS) { await this.db.kvDel('await:' + uid); return null; }
+    if (Date.now() - (a.at || 0) > AWAIT_TTL_MS) { await this.db.kvDel('await:' + c.uid); return null; }
+    if (a.chat !== c.chatId) return null; // asked in another chat: leave it for there
     return a;
   }
 
   async onAwaited(c, text) {
-    const a = await this.peekAwait(c.uid);
+    const a = await this.peekAwait(c);
     await this.db.kvDel('await:' + c.uid);
     const value = String(text).trim();
     if (!a || !value) return;
@@ -520,7 +538,7 @@ export class Bot {
           return this.reply(c, [F.draftMessage(draft, today), this.ownerPicker(draft, i, await this.team.members(), `คนทำตอนนี้: ${task.owners.join(', ') || '-'} (กดเพิ่ม/เอาออก)`)]);
         }
         case 'dti':
-          await this.db.kvSet('await:' + c.uid, { type: 'draft_title', draftId: draft.id, i, at: Date.now() });
+          await this.db.kvSet('await:' + c.uid, { type: 'draft_title', draftId: draft.id, i, chat: c.chatId, at: Date.now() });
           return this.reply(c, F.textMsg('พิมพ์ชื่องานใหม่ได้เลย'));
         case 'dst': {
           const streams = await this.team.streams();
@@ -534,7 +552,7 @@ export class Bot {
           task.stream = decodeURIComponent(p.get('v') || 'General');
           return this.saveDraftAndShow(c, draft);
         case 'dsw':
-          await this.db.kvSet('await:' + c.uid, { type: 'draft_stream', draftId: draft.id, i, at: Date.now() });
+          await this.db.kvSet('await:' + c.uid, { type: 'draft_stream', draftId: draft.id, i, chat: c.chatId, at: Date.now() });
           return this.reply(c, F.textMsg('พิมพ์ชื่อหมวดได้เลย'));
         default: return;
       }

@@ -1,21 +1,71 @@
 // LINE Messaging API wrapper. Replies are free; pushes count against the
 // monthly allowance per recipient (a push to a 3-person group costs 3), so
 // every push goes through here and is counted in the Sheet.
+//
+// The month's limit is never crossed: before each push we use the HIGHER of
+// our own count and LINE's count (LINE's also sees messages sent from OA
+// Manager), and the LOWER of PUSH_MONTHLY_LIMIT and LINE's own quota.
+//   essential  (🚧 blocked)          stops at 100%
+//   normal     (digest, weekly, ...) stops at 90%
+//   low        (18:00 ✓ round-up)    also stops when the month is ahead of
+//              pace (more than 90% × day/days-in-month used), so the budget
+//              lasts to the end of the month
 
 import { messagingApi } from '@line/bot-sdk';
 
+const LINE_COUNT_TTL_MS = 10 * 60_000;
+
 export class Line {
-  constructor({ token, db, monthlyLimit = 300, client = null, timeZone = 'Asia/Bangkok' }) {
+  constructor({ token, db, monthlyLimit = 300, client = null, timeZone = 'Asia/Bangkok', now = () => new Date() }) {
     this.client = client || new messagingApi.MessagingApiClient({ channelAccessToken: token });
     this.blob = client ? null : new messagingApi.MessagingApiBlobClient({ channelAccessToken: token });
     this.db = db;
     this.limit = monthlyLimit;
     this.tz = timeZone;
+    this.now = now;
     this.sizes = new Map();
+    this.lineCount = null; // { at, month, used, limit }
   }
 
-  monthKey(now = new Date()) {
+  monthKey(now = this.now()) {
     return 'push:' + new Intl.DateTimeFormat('en-CA', { timeZone: this.tz, year: 'numeric', month: '2-digit' }).format(now);
+  }
+
+  /** LINE's own usage and quota for this month (cached 10 min), or null when LINE can't be asked. */
+  async lineUsage() {
+    const now = this.now();
+    const month = this.monthKey(now);
+    const hit = this.lineCount;
+    if (hit && hit.month === month && now.getTime() - hit.at < LINE_COUNT_TTL_MS) return hit;
+    try {
+      const [q, c] = await Promise.all([this.client.getMessageQuota(), this.client.getMessageQuotaConsumption()]);
+      this.lineCount = {
+        at: now.getTime(), month,
+        used: Number(c?.totalUsage) || 0,
+        limit: q?.type === 'limited' && Number(q.value) > 0 ? Number(q.value) : null,
+      };
+      return this.lineCount;
+    } catch (err) {
+      if (!hit || hit.month !== month) console.warn('LINE quota check failed, using our own count', err?.message || err);
+      return hit && hit.month === month ? hit : null;
+    }
+  }
+
+  /** { used, limit, source } for this month: the stricter of ours and LINE's. */
+  async budget() {
+    const ours = Number(await this.db.kvGet(this.monthKey(), 0)) || 0;
+    const l = await this.lineUsage();
+    const limit = Math.min(this.limit, l?.limit ?? Infinity);
+    const used = Math.max(ours, l?.used ?? 0);
+    return { used, limit, ours, source: l ? 'line' : 'bot' };
+  }
+
+  /** How much of the month's 90% should be used by the end of today. */
+  pace(limit, now = this.now()) {
+    const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: this.tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+      .format(now).split('-').map(Number);
+    const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return Math.floor(limit * 0.9 * (d / days));
   }
 
   async reply(replyToken, messages) {
@@ -37,34 +87,34 @@ export class Line {
   }
 
   /**
-   * Push with budget control. Non-essential pushes are skipped once 90% of the
-   * month's allowance is used. Returns true when sent.
+   * Push with budget control (see the top of this file). Returns true when sent.
+   * `essential` may use the last 10%; `low` also waits when the month is ahead of pace.
    */
-  async push(to, messages, { essential = false, kind = 'push' } = {}) {
+  async push(to, messages, { essential = false, low = false, kind = 'push' } = {}) {
     const list = (Array.isArray(messages) ? messages : [messages]).filter(Boolean).slice(0, 5);
     if (!to || !list.length) return false;
     const cost = await this.recipients(to);
     const key = this.monthKey();
-    const used = Number(await this.db.kvGet(key, 0)) || 0;
-    if (used + cost > this.limit || (!essential && used + cost > this.limit * 0.9)) {
-      console.warn(`push skipped (${kind}): ${used}/${this.limit} used this month`);
-      await this.db.log('bot', to, 'push_skipped', `${kind} ${used}/${this.limit}`);
+    const { used, limit } = await this.budget();
+    const after = used + cost;
+    const why = after > limit ? 'limit'
+      : !essential && after > limit * 0.9 ? '90%'
+        : low && after > this.pace(limit) ? 'pace' : '';
+    if (why) {
+      console.warn(`push skipped (${kind}, ${why}): ${used}/${limit} used this month`);
+      await this.db.log('bot', to, 'push_skipped', `${kind} ${why} ${used}/${limit}`);
       return false;
     }
     await this.client.pushMessage({ to, messages: list });
     await this.db.kvUpdate(key, (n) => (Number(n) || 0) + cost, 0);
+    if (this.lineCount?.month === key) this.lineCount.used += cost;
     return true;
   }
 
-  /** LINE's own count when available, else ours. */
+  /** For the settings card. */
   async quota() {
-    const ours = Number(await this.db.kvGet(this.monthKey(), 0)) || 0;
-    try {
-      const [q, c] = await Promise.all([this.client.getMessageQuota(), this.client.getMessageQuotaConsumption()]);
-      return { limit: q?.type === 'limited' ? q.value : this.limit, used: c?.totalUsage ?? ours, source: 'line' };
-    } catch {
-      return { limit: this.limit, used: ours, source: 'bot' };
-    }
+    const b = await this.budget();
+    return { limit: b.limit, used: b.used, source: b.source };
   }
 
   async displayName(userId, groupId) {
@@ -72,6 +122,20 @@ export class Line {
       const p = groupId ? await this.client.getGroupMemberProfile(groupId, userId) : await this.client.getProfile(userId);
       return p?.displayName || '';
     } catch { return ''; }
+  }
+
+  /** true / false, or null when LINE could not be asked (treat as "not now"). */
+  async isGroupMember(groupId, userId) {
+    if (!groupId || !userId) return false;
+    try {
+      await this.client.getGroupMemberProfile(groupId, userId);
+      return true;
+    } catch (err) {
+      const status = Number(err?.status ?? err?.statusCode);
+      if (status === 404 || status === 400) return false;
+      console.warn('group member check failed', err?.message || err);
+      return null;
+    }
   }
 
   async showLoading(userId, seconds = 20) {

@@ -18,7 +18,8 @@ export function loadConfig(env = process.env) {
     // service account). The bot creates the tabs it needs on first start.
     sheetId: env.SHEET_ID || '',
     // First start only: nicknames to put in the Members tab when it is empty,
-    // e.g. "Jai:admin, Best, Bonnie". Later, edit the Members tab directly.
+    // "Nick/alias/alias:role", e.g. "Jai/เจ:admin, Best/เบสท์, Bonnie/บอนนี่".
+    // Later, edit the Members tab directly.
     teamSeed: list(env.TEAM_SEED),
 
     ai: {

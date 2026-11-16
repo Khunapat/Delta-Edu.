@@ -56,4 +56,4 @@ function defaultSleep(ms) {
 }
 
 /** Thai text shown to the user when the AI is rate-limited. */
-export const QUOTA_MESSAGE = 'ตอนนี้ AI ติดลิมิตชั่วคราว 😅 ลองใหม่อีกสักครู่นะ (ไฟล์ที่ส่งมายังเก็บเข้า Drive ให้ตามปกติ)';
+export const QUOTA_MESSAGE = 'ตอนนี้ AI ติดลิมิตชั่วคราว 😅 ลองใหม่อีกสักครู่นะ (ปุ่มกับคำสั่งสั้นๆ ยังใช้ได้)';

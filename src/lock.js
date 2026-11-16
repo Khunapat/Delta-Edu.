@@ -1,7 +1,7 @@
 /**
  * Tiny in-process mutex keyed by string. Cloud Run runs a single instance
  * (max-instances 1), so this is enough to serialise read-modify-write work
- * on one tenant's Drive documents and to keep one chat's AI steps in order.
+ * on the Sheet's tabs and Kv keys.
  *
  *   await withLock(locks, 'opp:U123', async () => { ...critical section... });
  *
