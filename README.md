@@ -148,6 +148,18 @@ the claude.ai runtime: same `db`/`user` calls, backed by `/api/board/*`) and swa
 the email wording for LINE. To update the page, replace `board/index.html` and run
 the tests: they fail if a swapped sentence no longer matches.
 
+## Research (Google Form)
+
+On the web board's **Research** page, link the Sheet that collects the Form's
+responses (Google Forms → Responses → Link to Sheets) and share that Sheet with
+the bot's service account as **Viewer**. The bot then reads it every hour (and right
+after the link is saved) and fills the page: responses toward the target, answers per
+day, and a chart per question (single choice, multiple choice, 1–5 scale, number or
+written answers). Columns with contact details or names are skipped entirely, and
+written answers are scrubbed of phone numbers and emails (`src/research.js`).
+The Monday post gets one research line (survey total and the last 7 days, interviews
+done), and `@Norse สรุปผลแบบสอบถาม` answers from the same summary.
+
 ## What Norse knows
 
 For questions, the AI gets the task list, milestones, **`knowledge/norse.md`** (the
@@ -179,7 +191,7 @@ the animated banners from `scripts/banners/banners.html` (both need Playwright).
 
 ```bash
 npm install
-npm test          # 54 tests, no network
+npm test          # 58 tests, no network
 npm run preview   # cards.html: every card (real code, sample data) as LINE lays it out
 ```
 
@@ -196,6 +208,7 @@ Cloud Shell. Re-running with no changes does nothing.
 - `src/scheduler.js`: daily digest, overdue tag, weekly posts, evening round-up
 - `src/flex.js`: cards in the dashboard style; `scripts/cards/`: sample cards + a LINE-like renderer for previews
 - `src/dates.js`: Thai dates ("ศุกร์หน้า", "20 พ.ย.", ambiguous phrases become questions)
+- `src/research.js`: Google Form responses → the board's Research page and the Monday line
 - `src/knowledge.js`, `knowledge/norse.md`: what the AI knows about NORSE for questions
 - `src/rules.js`: commands and update phrases that need no AI
 - `src/ai/`: Gemini / Claude providers, model fallback, usage counter, prompt + JSON schema
@@ -208,6 +221,6 @@ Cloud Shell. Re-running with no changes does nothing.
 ## Next (MVP 2–3)
 
 - Meeting notes (text, voice, whiteboard photo) → decisions and action items to confirm
-- Research: progress toward 20 interviews and a Google Form summary (inside the Monday post and replies, to save pushes)
+- ~~Research: progress toward 20 interviews and a Google Form summary~~ done (see Research)
 - Private interview notes, receipts → expenses, supplier quotes
-- ~~A LIFF board inside LINE, reading the same Sheet~~ done (see Web board); next: Research tab fed from the Google Form responses
+- ~~A LIFF board inside LINE, reading the same Sheet~~ done (see Web board)

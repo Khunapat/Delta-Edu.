@@ -10,6 +10,7 @@ import { BoardStore } from './board/store.js';
 import { BoardAuth } from './board/auth.js';
 import { boardRouter } from './board/routes.js';
 import { buildKnowledge } from './knowledge.js';
+import { Research } from './research.js';
 
 const cfg = loadConfig();
 const backend = cfg.sheetId ? new GoogleSheetsBackend(cfg.sheetId) : new MemoryBackend();
@@ -28,7 +29,8 @@ async function knowledge() {
   return known.text;
 }
 const bot = new Bot({ cfg, db, team, line, ai, knowledge });
-const scheduler = new Scheduler({ cfg, db, team, line, bot });
+const research = new Research({ store });
+const scheduler = new Scheduler({ cfg, db, team, line, bot, research });
 
 let ready = null;
 function init() {
@@ -41,6 +43,12 @@ function init() {
 }
 
 const auth = new BoardAuth({ secret: cfg.board.sessionSecret, channelId: cfg.board.loginChannelId, team });
-const board = boardRouter({ store, auth, init, liffId: cfg.board.liffId, onChange: (change) => bot.boardChanged(change) });
+const board = boardRouter({
+  store, auth, init, liffId: cfg.board.liffId,
+  onChange: async (change) => {
+    await bot.boardChanged(change);
+    if (change.path === 'research/config') await research.sync(); // Form link saved: fill the Research page now
+  },
+});
 const app = makeApp({ cfg, init, bot, scheduler, aiLabel: () => ai.label, board });
 app.listen(cfg.port, () => console.log(`${cfg.botName} listening on ${cfg.port} (${ai.label})`));

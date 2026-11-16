@@ -18,8 +18,8 @@ import * as F from './flex.js';
 const OVERDUE_DM_DAYS = new Set([1, 2, 3, 5, 7]);
 
 export class Scheduler {
-  constructor({ cfg, db, team, line, bot }) {
-    Object.assign(this, { cfg, db, team, line, bot });
+  constructor({ cfg, db, team, line, bot, research = null }) {
+    Object.assign(this, { cfg, db, team, line, bot, research });
   }
 
   async tick({ now = new Date(), force = null } = {}) {
@@ -45,7 +45,9 @@ export class Scheduler {
         ran.push({ slot, error: String(err?.message || err) });
       }
     }
-    return { hour, weekday, ran };
+    // Google Form answers -> the board's Research page, every tick (2 Sheet reads, no pushes).
+    const research = this.research && !force ? await this.research.sync().catch((err) => ({ error: String(err?.message || err) })) : undefined;
+    return { hour, weekday, ran, ...(research ? { research } : {}) };
   }
 
   // ---- morning -------------------------------------------------------------
@@ -108,6 +110,7 @@ export class Scheduler {
     const mon = weekStart(today);
     const sun = addDays(mon, 6);
     const [tasks, milestones, members] = await Promise.all([this.team.tasks(), this.team.milestones(), this.team.members()]);
+    const research = this.research ? await this.research.progressLine(today, addDays(today, -6)).catch(() => '') : '';
     const open = tasks.filter((t) => t.status !== 'done');
     const week = open.filter((t) => t.due && t.due >= mon && t.due <= sun).sort(byDue);
     const late = open.filter((t) => t.due && t.due < mon);
@@ -131,6 +134,7 @@ export class Scheduler {
         { label: '🏁 Milestone', lines: ms.map((m) => `${m.title} · ${formatDay(m.date, today)}`) },
         ...(late.length ? [{ label: `🔴 ค้างจากก่อนหน้า (${late.length})`, color: '#C8462F', lines: late.map((t) => `${t.title} (${ownersOf(t).join(', ')})`) }] : []),
         ...(blocked.length ? [{ label: `🚧 ติดอยู่ (${blocked.length})`, color: '#C8462F', lines: blocked.map((t) => `${t.title}${t.blocker ? ': ' + t.blocker : ''}`) }] : []),
+        ...(research ? [{ label: '📋 รีเสิร์ช', lines: [research] }] : []),
       ],
     });
     const ok = await this.line.push(group, msg, { kind: 'monday' });

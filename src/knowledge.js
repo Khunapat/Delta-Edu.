@@ -57,6 +57,21 @@ function flattenText(obj, depth = 0, out = []) {
   return out;
 }
 
+/** Survey summary in a few lines: totals, then each question's top answers. */
+export function researchText(s) {
+  const lines = [`Google Form survey: ${Number(s.total) || 0} responses${s.updatedAt ? ` (synced ${String(s.updatedAt).slice(0, 10)})` : ''}.`];
+  for (const q of (Array.isArray(s.questions) ? s.questions : []).slice(0, 20)) {
+    let a = '';
+    if (q.type === 'choice' || q.type === 'multi') {
+      const base = q.type === 'multi' ? (Number(q.n) || 1) : (q.options || []).reduce((n, o) => n + (Number(o.count) || 0), 0) || 1;
+      a = (q.options || []).slice(0, 4).map((o) => `${scrub(o.label)} ${Math.round((Number(o.count) || 0) / base * 100)}%`).join(', ');
+    } else if (q.type === 'scale' || q.type === 'number') a = `average ${Number(q.avg || 0).toFixed(1)}${q.max ? ' / ' + q.max : ''}`;
+    else a = (q.samples || []).slice(0, 2).map((x) => `"${scrub(x).slice(0, 80)}"`).join(' ');
+    lines.push(`- ${scrub(q.title).slice(0, 90)} (${q.n} answers): ${a}`);
+  }
+  return lines.join('\n');
+}
+
 export function baseKnowledge() {
   if (!existsSync(FILE)) return '';
   return readFileSync(FILE, 'utf8').split('\n').filter((l) => l.startsWith('- ') || /^\s{2,}\S/.test(l)).join('\n');
@@ -75,7 +90,7 @@ export function buildKnowledge(docs = {}, { max = 9000 } = {}) {
     if (rows.length) parts.push(`Business model canvas:\n${rows.join('\n')}`);
   }
   const research = docs['research/summary'];
-  if (research) parts.push(`Research summary (Google Form):\n${flattenText(research).join(' · ').slice(0, 1500)}`);
+  if (research) parts.push(researchText(research));
   for (const [coll, label] of COLLECTIONS) {
     const rows = Object.entries(docs).filter(([p]) => p.split('/')[0] === coll).map(([, d]) => line(d)).filter(Boolean);
     if (rows.length) parts.push(`${label} (${rows.length}):\n${rows.slice(0, 25).map((r) => '- ' + r).join('\n')}`);
