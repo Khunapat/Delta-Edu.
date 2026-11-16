@@ -63,7 +63,7 @@ ask GEMINI_API_KEY "Gemini API key (free: https://aistudio.google.com/apikey), E
 ask ANTHROPIC_API_KEY "Claude API key (paid, optional), Enter to skip" secret optional
 [ -n "$(getenv BOT_NAME)" ]      || setenv BOT_NAME "Norse"
 [ -n "$(getenv TIMEZONE)" ]      || setenv TIMEZONE "Asia/Bangkok"
-[ -n "$(getenv GEMINI_MODELS)" ] || setenv GEMINI_MODELS "gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+[ -n "$(getenv GEMINI_MODELS)" ] || setenv GEMINI_MODELS "gemini-3.8-flash,gemini-3.6-flash,gemini-3-flash,gemini-2.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
 [ -n "$(getenv CRON_SECRET)" ]   || setenv CRON_SECRET "$(node -e 'console.log(require("crypto").randomBytes(16).toString("hex"))')"
 
 bold "3/6  APIs and the bot's service account"

@@ -27,7 +27,7 @@ export function loadConfig(env = process.env) {
       geminiKey: env.GEMINI_API_KEY || '',
       // Tried in order. Free-tier quota is counted per model, so when one
       // model's daily quota runs out the next one is used.
-      geminiModels: list(env.GEMINI_MODELS, 'gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite'),
+      geminiModels: list(env.GEMINI_MODELS, 'gemini-3.8-flash,gemini-3.6-flash,gemini-3-flash,gemini-2.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite'),
       anthropicKey: env.ANTHROPIC_API_KEY || '',
       claudeModel: env.CLAUDE_MODEL || 'claude-sonnet-5-5',
     },
