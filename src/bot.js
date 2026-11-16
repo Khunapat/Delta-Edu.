@@ -17,8 +17,9 @@ const NEW_TASK = /^งานใหม่\s*[:：]?/;
 const AWAIT_TTL_MS = 30 * 60_000;
 
 export class Bot {
-  constructor({ cfg, db, team, line, ai }) {
+  constructor({ cfg, db, team, line, ai, knowledge = async () => '' }) {
     this.cfg = cfg;
+    this.knowledge = knowledge; // text about NORSE for questions (src/knowledge.js)
     this.db = db;
     this.team = team;
     this.line = line;
@@ -268,15 +269,16 @@ export class Bot {
   async withAi(c, text, { mentioned = [] }) {
     if (c.chat === 'direct') this.line.showLoading(c.uid).catch(() => {});
     const today = this.today();
-    const [members, tasks, milestones, streams] = await Promise.all([
+    const [members, tasks, milestones, streams, knowledge] = await Promise.all([
       this.team.members(), this.team.tasks(), this.team.milestones(), this.team.streams(),
+      this.knowledge().catch((err) => { console.warn('knowledge failed', err?.message || err); return ''; }),
     ]);
     const myTasks = c.chat === 'direct' ? tasks.filter((x) => x.status !== 'done' && ownersOf(x).includes(c.member.nickname)).sort(byDue) : null;
     let out;
     try {
       out = await understand(this.ai, {
         botName: this.name, chat: c.chat, text,
-        ctx: { today, sender: c.member.nickname, members, mentioned, streams, tasks, milestones, myTasks },
+        ctx: { today, sender: c.member.nickname, members, mentioned, streams, tasks, milestones, myTasks, knowledge },
       });
     } catch (err) {
       if (err instanceof AiResting || err instanceof AiOff) {

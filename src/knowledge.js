@@ -1,0 +1,87 @@
+// What Norse knows about NORSE beyond the task list, for questions like
+// "@Norse ซัพพลายเออร์เจ้าไหนถูกสุด" or "@Norse vision ของเราคืออะไร".
+//   1. knowledge/norse.md: the basics, always included (edit to teach Norse more)
+//   2. the web board's documents: brand, canvas, interviews, product roadmap,
+//      suppliers, budget, meetings, competitors, marketing, research summary
+// Privacy rule: no phone numbers or emails ever go to the AI. Contact fields are
+// dropped and anything that looks like a phone number or email is masked.
+
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'knowledge', 'norse.md');
+
+// Board collections worth knowing, in order of usefulness, with a label for the AI.
+const COLLECTIONS = [
+  ['meetings', 'Meetings & decisions'],
+  ['interviews', 'Interview notes (participant codes, not names)'],
+  ['competitors', 'Competitors'],
+  ['suppliers', 'Suppliers'],
+  ['features', 'Product roadmap / ideas'],
+  ['marketing', 'Marketing'],
+  ['expenses', 'Budget & costs'],
+];
+// Never sent: who to call and how. (contacts/* is skipped as a whole.)
+const PRIVATE_KEYS = /^(email|e-?mail|phone|tel|mobile|line|lineid|line_id|contact|address|customer)$/i;
+const SKIP_KEYS = /^(id|example|updated|created|_updated|color|x|y|w|h)$/i;
+const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const PHONE = /(?:\+?66|0)[\s-]?\d{1,2}[\s-]?\d{3}[\s-]?\d{3,4}\b|\b\d{9,10}\b/g;
+
+/** Mask emails and phone numbers in free text. */
+export function scrub(s) {
+  return String(s ?? '').replace(EMAIL, '[email]').replace(PHONE, '[phone]');
+}
+
+/** One line from a document: "key: value · key: value", private keys dropped. */
+function line(doc, max = 320) {
+  const parts = [];
+  for (const [k, v] of Object.entries(doc || {})) {
+    if (PRIVATE_KEYS.test(k) || SKIP_KEYS.test(k) || v == null || v === '') continue;
+    let val;
+    if (Array.isArray(v)) val = v.map((x) => (typeof x === 'object' ? x?.text ?? '' : x)).filter(Boolean).join(', ');
+    else if (typeof v === 'object') continue;
+    else val = String(v);
+    val = scrub(val).replace(/\s+/g, ' ').trim();
+    if (val) parts.push(`${k}: ${val}`);
+  }
+  const out = parts.join(' · ');
+  return out.length > max ? out.slice(0, max - 1) + '…' : out;
+}
+
+function flattenText(obj, depth = 0, out = []) {
+  if (obj == null || depth > 3) return out;
+  if (typeof obj === 'string' || typeof obj === 'number') { const s = scrub(String(obj)).trim(); if (s) out.push(s); return out; }
+  if (Array.isArray(obj)) { for (const x of obj) flattenText(x, depth + 1, out); return out; }
+  for (const [k, v] of Object.entries(obj)) if (!PRIVATE_KEYS.test(k) && !SKIP_KEYS.test(k)) flattenText(v, depth + 1, out);
+  return out;
+}
+
+export function baseKnowledge() {
+  if (!existsSync(FILE)) return '';
+  return readFileSync(FILE, 'utf8').split('\n').filter((l) => l.startsWith('- ') || /^\s{2,}\S/.test(l)).join('\n');
+}
+
+/** Text for the AI from the board's documents (path -> data). `max` caps the size. */
+export function buildKnowledge(docs = {}, { max = 9000 } = {}) {
+  const parts = [];
+  const base = baseKnowledge();
+  if (base) parts.push(`NORSE basics:\n${base}`);
+  const brand = docs['meta/brand'];
+  if (brand) parts.push(`Brand (vision, mission, values):\n${flattenText(brand).join(' · ').slice(0, 1200)}`);
+  const bmc = docs['bmc/main']?.blocks;
+  if (bmc && typeof bmc === 'object') {
+    const rows = Object.entries(bmc).map(([k, notes]) => `${k}: ${(Array.isArray(notes) ? notes : []).map((n) => scrub(n?.text || '')).filter(Boolean).join('; ')}`).filter((r) => !r.endsWith(': '));
+    if (rows.length) parts.push(`Business model canvas:\n${rows.join('\n')}`);
+  }
+  const research = docs['research/summary'];
+  if (research) parts.push(`Research summary (Google Form):\n${flattenText(research).join(' · ').slice(0, 1500)}`);
+  for (const [coll, label] of COLLECTIONS) {
+    const rows = Object.entries(docs).filter(([p]) => p.split('/')[0] === coll).map(([, d]) => line(d)).filter(Boolean);
+    if (rows.length) parts.push(`${label} (${rows.length}):\n${rows.slice(0, 25).map((r) => '- ' + r).join('\n')}`);
+  }
+  let text = parts.join('\n\n');
+  const more = '\n…(more on the board)';
+  if (text.length > max) text = text.slice(0, max - more.length) + more;
+  return text;
+}

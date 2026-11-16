@@ -41,7 +41,7 @@ export const SCHEMA = {
       required: ['task_id', 'action', 'date_text', 'date', 'reason'],
       additionalProperties: false,
     },
-    answer: { type: 'string', description: 'For question / other: a short casual Thai reply (1-3 lines) using only the DATA.' },
+    answer: { type: 'string', description: 'For question / other: a short, casual reply (greetings 1-2 lines, answers up to 6 lines), following the rules for team facts vs general knowledge.' },
     clarify: { type: 'string', description: 'One short Thai question if something needed is missing or unclear; else empty.' },
   },
   required: ['intent', 'tasks', 'update', 'answer', 'clarify'],
@@ -70,13 +70,16 @@ export function systemPrompt({ botName, chat }) {
     '- Never guess an owner or a date. Only use names that appear in the message (or "@me" when the sender says ฉัน/ผม/เรา/เค้า about themself). If none, leave owners empty.',
     '- due_text must be copied from the message; due_date must come from the CALENDAR. No date words means both empty.',
     '- One task per distinct piece of work. Several people on one piece of work = one task with several owners.',
-    '- Answer questions ONLY from DATA. If DATA has no record, say so plainly (e.g. "ยังไม่มีบันทึกเรื่องนี้").',
-    '- Never write health or medical claims about the product (no curing, treating or preventing anything). Never show phone numbers or emails.',
+    '- Greetings, thanks and small talk ("hello", "สวัสดี", "ขอบคุณ", "เก่งมาก"): intent other, a warm 1-2 line reply in the sender\'s language; you may mention one thing you can help with.',
+    '- Questions about THIS TEAM or NORSE (tasks, people, dates, numbers, decisions, research results, suppliers, prices, competitors, brand): answer ONLY from DATA and KNOWLEDGE. Never invent team facts, numbers or names. If they are not there, say so plainly (e.g. "ยังไม่มีบันทึกเรื่องนี้ ลองเพิ่มในบอร์ดได้นะ").',
+    '- General questions (ideas, how-to, definitions, marketing or business tips, explaining a concept): answer briefly from general knowledge, practical for a small Thai startup, and end with "(ความรู้ทั่วไป ไม่ใช่ข้อมูลทีม)" so the team knows it is not their data.',
+    '- Never write health or medical claims about the product (no curing, treating, preventing or improving any condition). If asked about health effects, say NORSE cannot claim that (Thai FDA rules) and talk about scent, feel and convenience instead.',
+    '- Never show phone numbers or emails.',
     '- intent my_tasks = asking for their own task list; team_status = who is on what / overdue / blocked; brief = what to do today.',
   ].join('\n');
 }
 
-export function contextBlock({ today, sender, members, mentioned = [], streams, tasks, milestones, myTasks = null }) {
+export function contextBlock({ today, sender, members, mentioned = [], streams, tasks, milestones, myTasks = null, knowledge = '' }) {
   const lines = [
     `TODAY: ${today} (${weekdayName(today)}, ${formatDay(today, today)})`,
     'CALENDAR:', calendar(today),
@@ -93,6 +96,7 @@ export function contextBlock({ today, sender, members, mentioned = [], streams, 
   const done = tasks.filter((t) => t.status === 'done').slice(-20);
   lines.push('DATA tasks (title | owner | stream | status | due | blocker):');
   lines.push([...open, ...done].map((t) => `${t.title} | ${ownersOf(t).join('+') || '-'} | ${t.stream} | ${t.status} | ${t.due || '-'} | ${t.blocker || ''}`).join('\n') || '(none)');
+  if (knowledge) lines.push('KNOWLEDGE (team notes from the board and NORSE basics; may be incomplete):', knowledge);
   lines.push('DATA milestones (title | date | done):');
   lines.push(milestones.map((m) => `${m.title} | ${m.date || '-'} | ${m.done ? 'yes' : 'no'}`).join('\n') || '(none)');
   return lines.join('\n');

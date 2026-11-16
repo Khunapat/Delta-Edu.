@@ -6,4 +6,5 @@ RUN npm ci --omit=dev
 COPY src ./src
 COPY board ./board
 COPY brand ./brand
+COPY knowledge ./knowledge
 CMD ["node", "src/index.js"]

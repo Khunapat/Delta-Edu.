@@ -13,7 +13,7 @@ look of the NORSE Project Overview dashboard.
 | --- | --- |
 | `@Norse บอนนี่ กับ เจ ทำ mockup กล่อง ส่งศุกร์` | A card with owners, due date and workstream, with **ยืนยัน · วันส่ง · คนทำ · ชื่องาน · หมวด · ยกเลิก**. Nothing is saved until someone taps ยืนยัน. Unknown names and unclear dates ("อาทิตย์หน้า") are asked about; the bot never guesses an owner or a date. |
 | `@Norse งานทีม` | Done / in progress / overdue / blocked tiles, who is on what, and the risk list. No AI. |
-| `@Norse <question>` | Answered from the Sheet only; says so when there is no record. |
+| `@Norse hello` · `@Norse <question>` | Small talk gets a short friendly reply. Questions about NORSE are answered only from the team's data (tasks, milestones, `knowledge/norse.md` and everything written on the web board); if it isn't there, Norse says so. General questions get a short answer marked *(ความรู้ทั่วไป ไม่ใช่ข้อมูลทีม)*. |
 | `@Norse ใช้กลุ่มนี้` | (admin, once) makes this the team group. Other groups are ignored, and can't take over the role (to move it, delete the `team_group` row in the Kv tab first). |
 | `@Norse ตั้งค่า` | AI use per model today, reset time, LINE pushes used this month. |
 
@@ -148,6 +148,16 @@ the claude.ai runtime: same `db`/`user` calls, backed by `/api/board/*`) and swa
 the email wording for LINE. To update the page, replace `board/index.html` and run
 the tests: they fail if a swapped sentence no longer matches.
 
+## What Norse knows
+
+For questions, the AI gets the task list, milestones, **`knowledge/norse.md`** (the
+basics: brand, prototypes, research goal, the no-health-claims rule; edit it and
+redeploy to teach Norse more) and the web board's notes: brand page, business model
+canvas, meetings and decisions, interviews, competitors, suppliers, product roadmap,
+marketing, budget and the research summary (`src/knowledge.js`, up to ~9,000
+characters). Contacts are never included, contact fields (email, phone, LINE…) are
+dropped and anything that looks like a phone number or email is masked first.
+
 ## Logo
 
 `brand/norse-logo.svg` is the NORSE wordmark as a vector (traced from the brand
@@ -169,7 +179,7 @@ the animated banners from `scripts/banners/banners.html` (both need Playwright).
 
 ```bash
 npm install
-npm test          # 51 tests, no network
+npm test          # 54 tests, no network
 npm run preview   # cards.html: every card (real code, sample data) as LINE lays it out
 ```
 
@@ -186,6 +196,7 @@ Cloud Shell. Re-running with no changes does nothing.
 - `src/scheduler.js`: daily digest, overdue tag, weekly posts, evening round-up
 - `src/flex.js`: cards in the dashboard style; `scripts/cards/`: sample cards + a LINE-like renderer for previews
 - `src/dates.js`: Thai dates ("ศุกร์หน้า", "20 พ.ย.", ambiguous phrases become questions)
+- `src/knowledge.js`, `knowledge/norse.md`: what the AI knows about NORSE for questions
 - `src/rules.js`: commands and update phrases that need no AI
 - `src/ai/`: Gemini / Claude providers, model fallback, usage counter, prompt + JSON schema
 - `src/sheets.js`, `src/team.js`: the Sheet as a database; members and tasks

@@ -9,6 +9,7 @@ import { makeApp } from './app.js';
 import { BoardStore } from './board/store.js';
 import { BoardAuth } from './board/auth.js';
 import { boardRouter } from './board/routes.js';
+import { buildKnowledge } from './knowledge.js';
 
 const cfg = loadConfig();
 const backend = cfg.sheetId ? new GoogleSheetsBackend(cfg.sheetId) : new MemoryBackend();
@@ -17,7 +18,16 @@ const db = new Db(backend);
 const team = new Team(db, { timeZone: cfg.timeZone });
 const line = new Line({ token: cfg.line.channelAccessToken, db, monthlyLimit: cfg.pushMonthlyLimit, timeZone: cfg.timeZone });
 const ai = new Ai({ cfg, db });
-const bot = new Bot({ cfg, db, team, line, ai });
+const store = new BoardStore({ db, team });
+// What Norse knows for questions: knowledge/norse.md + the web board's notes (cached a minute).
+let known = { at: 0, text: '' };
+async function knowledge() {
+  if (Date.now() - known.at < 60_000) return known.text;
+  const { docs } = await store.snapshot();
+  known = { at: Date.now(), text: buildKnowledge(docs) };
+  return known.text;
+}
+const bot = new Bot({ cfg, db, team, line, ai, knowledge });
 const scheduler = new Scheduler({ cfg, db, team, line, bot });
 
 let ready = null;
@@ -30,7 +40,6 @@ function init() {
   return ready;
 }
 
-const store = new BoardStore({ db, team });
 const auth = new BoardAuth({ secret: cfg.board.sessionSecret, channelId: cfg.board.loginChannelId, team });
 const board = boardRouter({ store, auth, init, liffId: cfg.board.liffId, onChange: (change) => bot.boardChanged(change) });
 const app = makeApp({ cfg, init, bot, scheduler, aiLabel: () => ai.label, board });
