@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
-import { areas, richMenuBody, BUTTONS, MENU_SIZE, NEW_TASK_PREFIX } from '../src/richmenu.js';
+import { areas, richMenuBody, imageFor, BUTTONS, MENU_SIZE, NEW_TASK_PREFIX } from '../src/richmenu.js';
 import { command } from '../src/rules.js';
 import { makeWorld, flat } from './helpers.js';
 
@@ -28,12 +28,22 @@ test('menu bar: every button is a command the bot knows (no AI) or the keyboard 
   }
 });
 
-test('menu bar image: 2500 x 843 PNG under 1 MB', () => {
-  const file = new URL('../scripts/rich-menu/menu.png', import.meta.url);
-  const png = readFileSync(file);
-  assert.equal(png.toString('ascii', 1, 4), 'PNG');
-  assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [MENU_SIZE.width, MENU_SIZE.height]);
-  assert.ok(statSync(file).size < 1024 * 1024);
+test('menu bar images: 2500 x 843 PNG under 1 MB, with and without the dashboard tile', () => {
+  for (const name of ['menu.png', 'menu-board.png']) {
+    const file = new URL('../scripts/rich-menu/' + name, import.meta.url);
+    const png = readFileSync(file);
+    assert.equal(png.toString('ascii', 1, 4), 'PNG');
+    assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [MENU_SIZE.width, MENU_SIZE.height]);
+    assert.ok(statSync(file).size < 1024 * 1024);
+  }
+});
+
+test('with a LIFF app the 6th button opens the board; without, it is help', () => {
+  assert.equal(richMenuBody('v').areas[5].action.text, 'วิธีใช้');
+  assert.equal(imageFor({}), 'menu.png');
+  const a = richMenuBody('v', { liffId: '2001-Ab' }).areas[5].action;
+  assert.deepEqual([a.type, a.uri], ['uri', 'https://liff.line.me/2001-Ab']);
+  assert.equal(imageFor({ liffId: '2001-Ab' }), 'menu-board.png');
 });
 
 test('เพิ่มงาน: the tap gets no reply; "งานใหม่: ..." always creates, never updates', async () => {

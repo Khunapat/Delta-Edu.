@@ -229,6 +229,8 @@ export class Bot {
         return c.chat === 'group' ? this.registerGroup(c) : this.reply(c, F.textMsg('พิมพ์คำนี้ในกลุ่มทีมนะ'));
       case 'link':
         return this.link(c, cmd.name);
+      case 'board':
+        return this.reply(c, this.boardCard());
       default:
         return this.reply(c, F.helpMessage(c.chat, this.name));
     }
@@ -413,11 +415,12 @@ export class Bot {
   }
 
   /** Private "new task for you" DM, unless that person already got a push today (then tomorrow's digest has it). */
-  async notifyAssigned(tasks, by) {
+  async notifyAssigned(tasks, by, { only = null } = {}) {
     const today = this.today();
     const members = await this.team.members();
     for (const m of members) {
       if (!m.line_user_id || m.nickname === by) continue;
+      if (only && !only.includes(m.nickname)) continue;
       const mine = tasks.filter((x) => ownersOf(x).includes(m.nickname));
       if (!mine.length) continue;
       if ((await this.db.kvGet('lastpush:' + m.nickname, '')) === today) continue;
@@ -531,9 +534,7 @@ export class Bot {
     await this.db.log(c.member.nickname, c.chat, 'blocked', `${task.title}: ${reason}`);
     const today = this.today();
     const blocked = { ...task, status: 'blocked', blocker: reason };
-    const groupCard = F.resultMessage({
-      kind: 'blocked', task: blocked, today, headline: `${ownersOf(task).join(', ')} ติดงานนี้ · ใครช่วยได้บ้าง? 🙋`, note: reason,
-    });
+    const groupCard = this.blockedCard(blocked, reason);
     if (c.chat === 'group') return this.reply(c, groupCard);
     await this.reply(c, F.resultMessage({
       kind: 'blocked', task: blocked, today, headline: 'บันทึกแล้ว · เดี๋ยวบอกในกลุ่มให้ว่าใครช่วยได้', note: reason,
@@ -541,6 +542,43 @@ export class Bot {
     }));
     const group = await this.db.kvGet('team_group', '');
     if (group) await this.line.push(group, groupCard, { essential: true, kind: 'blocked' });
+  }
+
+  /** Card with a button that opens the web board inside LINE (LIFF). */
+  boardCard() {
+    const liffId = this.cfg.board?.liffId;
+    if (!liffId) return F.textMsg('ยังไม่ได้เปิดใช้บอร์ดบนเว็บ (ให้ admin ตั้งค่า LIFF ตาม README)');
+    return F.infoMessage({
+      title: 'บอร์ดทีม NORSE', sub: 'งาน · ไทม์ไลน์ · ทีม · รีเสิร์ช · ยอดขาย', alt: 'เปิดบอร์ดทีม NORSE',
+      lines: ['ข้อมูลเดียวกับใน LINE: แก้ที่บอร์ด Norse ก็แจ้งในแชทให้'],
+      buttons: [{ type: 'uri', label: 'เปิดบอร์ด', uri: `https://liff.line.me/${liffId}` }],
+    });
+  }
+
+  blockedCard(task, reason) {
+    return F.resultMessage({
+      kind: 'blocked', task, today: this.today(), headline: `${ownersOf(task).join(', ')} ติดงานนี้ · ใครช่วยได้บ้าง? 🙋`, note: reason || undefined,
+    });
+  }
+
+  // ======================================================================
+  // Changes made on the web board: tell people in LINE the same way as chat changes.
+  //   new owner      -> private "new task" DM (same once-a-day rule as chat)
+  //   marked done    -> ✓ line for the group (rides on the next free reply / 18:00)
+  //   marked blocked -> 🚧 card to the group right away
+  async boardChanged({ path, before, after, member }) {
+    if (!String(path).startsWith('tasks/') || !after) return;
+    const task = await this.team.task(path.split('/')[1]);
+    if (!task) return;
+    const was = before ? ownersOf({ owner: /^unassigned$/i.test(before.owner || '') ? '' : before.owner }) : [];
+    const added = ownersOf(task).filter((n) => !was.includes(n));
+    await this.db.log(member.nickname, 'board', before ? 'board_update' : 'board_create', task.title);
+    if (added.length && task.status !== 'done') await this.notifyAssigned([task], member.nickname, { only: added });
+    if (task.status === 'done' && before?.status !== 'done') await this.queueNotice(`✓ ${ownersOf(task).join(', ')} · ${task.title}`);
+    if (task.status === 'blocked' && before?.status !== 'blocked') {
+      const group = await this.db.kvGet('team_group', '');
+      if (group) await this.line.push(group, this.blockedCard(task, task.blocker), { essential: true, kind: 'blocked' });
+    }
   }
 
   // ======================================================================

@@ -3,10 +3,10 @@
 // LINE does not show rich menus in groups.
 //
 //   งานฉัน      | วันนี้ทำอะไรดี | งานทีม
-//   เพิ่มงาน     | ตั้งค่า        | วิธีใช้
+//   เพิ่มงาน     | ตั้งค่า        | แดชบอร์ด (opens the web board in LINE; วิธีใช้ when no LIFF_ID)
 //
-// The image is scripts/rich-menu/menu.png (2500 x 843), drawn from
-// scripts/rich-menu/menu.html with the same grid as AREAS below.
+// Images: scripts/rich-menu/menu-board.png and menu.png (2500 x 843), drawn from
+// scripts/rich-menu/menu.html with the same grid as areas() below.
 
 export const MENU_SIZE = { width: 2500, height: 843 };
 export const MENU_NAME = 'norse-main';
@@ -22,6 +22,13 @@ export const BUTTONS = [
   { key: 'help', th: 'วิธีใช้', en: 'Help', action: { type: 'message', label: 'วิธีใช้', text: 'วิธีใช้' } },
 ];
 
+/** The 6 buttons: with a LIFF app, the last one opens the web board instead of help. */
+export function buttonsFor({ liffId = '' } = {}) {
+  if (!liffId) return BUTTONS;
+  return [...BUTTONS.slice(0, 5), { key: 'board', th: 'แดชบอร์ด', en: 'Dashboard', action: { type: 'uri', label: 'แดชบอร์ด', uri: `https://liff.line.me/${liffId}` } }];
+}
+export const imageFor = ({ liffId = '' } = {}) => (liffId ? 'menu-board.png' : 'menu.png');
+
 /** 3 x 2 grid of tap areas covering the whole image, in BUTTONS order. */
 export function areas({ width, height } = MENU_SIZE, cols = 3, rows = 2) {
   const xs = Array.from({ length: cols + 1 }, (_, i) => Math.round((width * i) / cols));
@@ -36,13 +43,14 @@ export function areas({ width, height } = MENU_SIZE, cols = 3, rows = 2) {
 }
 
 /** The body for POST /v2/bot/richmenu. `version` goes in the name so re-runs can skip an unchanged menu. */
-export function richMenuBody(version = '') {
+export function richMenuBody(version = '', { liffId = '' } = {}) {
   const grid = areas();
+  const buttons = buttonsFor({ liffId });
   return {
     size: MENU_SIZE,
     selected: true, // open by default
     name: version ? `${MENU_NAME}-${version}` : MENU_NAME,
     chatBarText: 'เมนู Norse',
-    areas: BUTTONS.map((b, i) => ({ bounds: grid[i], action: b.action })),
+    areas: buttons.map((b, i) => ({ bounds: grid[i], action: b.action })),
   };
 }

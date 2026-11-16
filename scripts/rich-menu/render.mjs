@@ -27,9 +27,11 @@ if (dir && existsSync(dir)) {
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 2500, height: 843 }, deviceScaleFactor: 1 });
-await page.setContent(html, { waitUntil: 'networkidle' });
-await page.evaluate(() => document.fonts.ready);
-const out = join(here, 'menu.png');
-await page.screenshot({ path: out, type: 'png' });
+for (const [board, file] of [[false, 'menu.png'], [true, 'menu-board.png']]) {
+  await page.setContent(html, { waitUntil: 'networkidle' });
+  if (board) await page.evaluate(() => document.querySelector('.help-tile').replaceChildren(document.getElementById('board-tile').content.cloneNode(true)));
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: join(here, file), type: 'png' });
+  console.log('wrote', join(here, file));
+}
 await browser.close();
-console.log('wrote', out);

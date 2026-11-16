@@ -13,8 +13,11 @@ export const SCHEMA = {
   Members: ['nickname', 'aliases', 'role', 'line_user_id', 'linked_at', 'email', 'phone', 'line_id'],
   // Same field names as the team board (title, owner, stream, status, ...).
   Tasks: ['id', 'title', 'owner', 'stream', 'status', 'priority', 'start', 'due', 'blocker', 'notify',
-    'created', 'updated', 'created_by', 'done_at', 'source', 'reminded', 'overdue_tagged'],
-  Milestones: ['id', 'title', 'date', 'stream', 'done'],
+    'created', 'updated', 'created_by', 'done_at', 'source', 'reminded', 'overdue_tagged', 'extra'],
+  Milestones: ['id', 'title', 'date', 'stream', 'done', 'updated', 'extra'],
+  // Everything else the web board keeps (contacts, interviews, orders, canvas, settings...):
+  // one row per document, JSON split into parts when it is long.
+  Board: ['path', 'part', 'json', 'updated'],
   Kv: ['key', 'value', 'updated'],
   Log: ['time', 'who', 'chat', 'action', 'detail'],
 };
@@ -142,6 +145,22 @@ export class Db {
       for (const h of hits.reverse()) await this.b.clearRow(tab, h.row);
       this.cache.delete(tab);
       return hits.length;
+    });
+  }
+
+  /**
+   * Replace every row matching `match(obj)` with `objs` (in place where possible,
+   * appending the rest, clearing leftovers). Returns the number of rows written.
+   */
+  async replaceRows(tab, match, objs) {
+    return withLock(this.locks, tab, async () => {
+      const { header, rows } = await this.table(tab, { fresh: true });
+      const hits = rows.filter((r) => match(r.obj));
+      for (let i = 0; i < Math.min(hits.length, objs.length); i++) await this.b.setRow(tab, hits[i].row, this.toRow(header, objs[i]));
+      for (const h of hits.slice(objs.length).reverse()) await this.b.clearRow(tab, h.row);
+      if (objs.length > hits.length) await this.b.appendRows(tab, objs.slice(hits.length).map((o) => this.toRow(header, o)));
+      this.cache.delete(tab);
+      return objs.length;
     });
   }
 

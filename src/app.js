@@ -9,8 +9,9 @@ import { middleware, HTTPFetchError } from '@line/bot-sdk';
 const describe = (err) => (err instanceof HTTPFetchError ? `${err.status} ${err.body}` : err?.stack || String(err));
 
 /** `init` opens the Sheet (and creates tabs) once; it may throw until the Sheet is shared. */
-export function makeApp({ cfg, init, bot, scheduler, aiLabel = () => '' }) {
+export function makeApp({ cfg, init, bot, scheduler, aiLabel = () => '', board = null }) {
   const app = express();
+  if (board) app.use(board); // /board and /api/board/* (JSON body parsing stays inside it)
   app.get('/', (_req, res) => res.send(`${cfg.botName} ok`));
 
   app.get('/health', async (_req, res) => {

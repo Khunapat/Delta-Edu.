@@ -13,6 +13,7 @@ export function command(text) {
   if (/^(ตั้งค่า|settings?|usage|ai|โควตา)$/.test(s)) return { cmd: 'settings' };
   if (/^(help|ช่วยด้วย|ทำอะไรได้บ้าง|วิธีใช้|เมนู)$/.test(s)) return { cmd: 'help' };
   if (/^(ใช้กลุ่มนี้|ตั้งกลุ่มนี้|ตั้งเป็นกลุ่มทีม)$/.test(s)) return { cmd: 'register_group' };
+  if (/^(บอร์ด|แดชบอร์ด|เปิดบอร์ด|dashboard|board)$/.test(s)) return { cmd: 'board' };
   return null;
 }
 

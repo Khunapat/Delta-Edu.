@@ -8,7 +8,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { richMenuBody, MENU_NAME } from '../src/richmenu.js';
+import { richMenuBody, imageFor, MENU_NAME } from '../src/richmenu.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 function fromDotEnv(key) {
@@ -20,9 +20,10 @@ function fromDotEnv(key) {
 const token = process.env.LINE_CHANNEL_ACCESS_TOKEN || fromDotEnv('LINE_CHANNEL_ACCESS_TOKEN');
 if (!token) { console.error('LINE_CHANNEL_ACCESS_TOKEN is not set (env or .env)'); process.exit(1); }
 
-const image = readFileSync(join(root, 'scripts/rich-menu/menu.png'));
-const version = createHash('sha1').update(JSON.stringify(richMenuBody())).update(image).digest('hex').slice(0, 8);
-const body = richMenuBody(version);
+const liffId = process.env.LIFF_ID || fromDotEnv('LIFF_ID');
+const image = readFileSync(join(root, 'scripts/rich-menu', imageFor({ liffId })));
+const version = createHash('sha1').update(JSON.stringify(richMenuBody('', { liffId }))).update(image).digest('hex').slice(0, 8);
+const body = richMenuBody(version, { liffId });
 
 const auth = { Authorization: `Bearer ${token}` };
 async function call(method, url, { json, data, type } = {}) {

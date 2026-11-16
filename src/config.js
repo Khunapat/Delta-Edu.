@@ -32,6 +32,14 @@ export function loadConfig(env = process.env) {
       claudeModel: env.CLAUDE_MODEL || 'claude-sonnet-5-5',
     },
 
+    // Web board at /board (the team dashboard). Sign-in is a LIFF app on a LINE Login
+    // channel in the SAME provider as the bot, so user ids match Members.line_user_id.
+    board: {
+      liffId: env.LIFF_ID || '',
+      loginChannelId: env.LINE_LOGIN_CHANNEL_ID || '',
+      sessionSecret: env.SESSION_SECRET || '',
+    },
+
     // Cloud Scheduler calls /cron/tick every hour with this secret.
     cronSecret: env.CRON_SECRET || '',
     schedule: {

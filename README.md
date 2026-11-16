@@ -103,11 +103,48 @@ key, and the Sheet.
 
 Re-run `./scripts/setup.sh` to deploy new code.
 
+## Web board (the team dashboard, inside LINE)
+
+The NORSE Project Overview dashboard is hosted by the same Cloud Run service at
+`/board` and reads and writes **the same Sheet** as the bot:
+
+- A task made in LINE (`@Norse …`, `งานใหม่: …`) shows on the board within ~8 seconds.
+- A task made or edited on the board gets the same LINE treatment: new owners get
+  a private DM (same once-a-day rule), done → ✓ line in the group, blocked → 🚧
+  card in the group, and the 08:00 reminders (5/3/1 days, today, overdue).
+- Tasks and milestones are the Tasks and Milestones tabs. Everything else the board
+  keeps (contacts, interviews, orders, canvas, sources, settings) is in the **Board**
+  tab, one row per item. Leave that tab alone.
+- Sign-in is LINE (a LIFF app). Only linked team members get in; the session is a
+  signed cookie checked on every request. Contacts' phone and email are only
+  visible on the board, never in the group or to the AI.
+- It opens from the menu bar's **แดชบอร์ด** button, or `บอร์ด` / `@Norse บอร์ด`.
+
+**Setting it up (once, about 10 minutes)**
+
+1. LINE Developers console → provider **NORSE** (the bot's provider, so user ids match)
+   → **Create a new channel → LINE Login**. Region Thailand, app type **Web app**,
+   name e.g. `Norse Board`.
+2. In that channel, **LIFF** tab → **Add**: size **Full**, endpoint URL
+   `https://<service-url>/board`, scopes **openid** and **profile**. Bot link
+   feature: **On (Normal)** with the Norse account.
+3. Click **Publish** on the channel (top of the page). While it says *Developing*,
+   only the channel's admins can sign in.
+4. Copy the **Channel ID** (Basic settings) and the **LIFF ID** (LIFF tab).
+5. In Cloud Shell: `./scripts/setup.sh` and paste them when asked. The menu bar's
+   last button switches from วิธีใช้ to แดชบอร์ด.
+
+`board/index.html` is the dashboard page as built on claude.ai, kept as close to the
+original as possible. `src/board/routes.js` adds `board/client.js` (a stand-in for
+the claude.ai runtime: same `db`/`user` calls, backed by `/api/board/*`) and swaps
+the email wording for LINE. To update the page, replace `board/index.html` and run
+the tests: they fail if a swapped sentence no longer matches.
+
 ## Develop
 
 ```bash
 npm install
-npm test          # 36 tests, no network
+npm test          # 46 tests, no network
 npm run preview   # cards.html: rough preview of every card with sample data
 ```
 
@@ -115,7 +152,7 @@ Without `SHEET_ID` the bot uses an in-memory sheet (data is lost on restart).
 
 **Menu bar**: `setup.sh` uploads it. To change it, edit `src/richmenu.js`
 (buttons) and `scripts/rich-menu/menu.html` (look), run `npm run rich-menu:render`
-(needs Playwright) to redraw `menu.png`, commit, then `npm run rich-menu` in
+(needs Playwright) to redraw `menu.png` and `menu-board.png`, commit, then `npm run rich-menu` in
 Cloud Shell. Re-running with no changes does nothing.
 
 ## Code map
@@ -129,6 +166,7 @@ Cloud Shell. Re-running with no changes does nothing.
 - `src/sheets.js`, `src/team.js`: the Sheet as a database; members and tasks
 - `src/line.js`: replies, counted pushes, @mentions
 - `src/richmenu.js`, `scripts/rich-menu.js`, `scripts/rich-menu/`: the 1:1 menu bar (buttons, upload script, design + PNG)
+- `src/board/`: the web board: `store.js` (documents ↔ Sheet), `auth.js` (LINE Login, cookie), `routes.js`; `board/`: the page and `client.js`
 - `src/app.js`: HTTP routes (`/webhook`, `/health`, `/cron/tick`); `src/index.js` wires it all up
 
 ## Next (MVP 2–3)
@@ -136,4 +174,4 @@ Cloud Shell. Re-running with no changes does nothing.
 - Meeting notes (text, voice, whiteboard photo) → decisions and action items to confirm
 - Research: progress toward 20 interviews and a Google Form summary (inside the Monday post and replies, to save pushes)
 - Private interview notes, receipts → expenses, supplier quotes
-- A LIFF board inside LINE, reading the same Sheet
+- ~~A LIFF board inside LINE, reading the same Sheet~~ done (see Web board); next: Research tab fed from the Google Form responses

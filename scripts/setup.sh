@@ -65,6 +65,10 @@ ask ANTHROPIC_API_KEY "Claude API key (paid, optional), Enter to skip" secret op
 [ -n "$(getenv TIMEZONE)" ]      || setenv TIMEZONE "Asia/Bangkok"
 [ -n "$(getenv GEMINI_MODELS)" ] || setenv GEMINI_MODELS "gemini-3.8-flash,gemini-3.6-flash,gemini-3-flash,gemini-2.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
 [ -n "$(getenv CRON_SECRET)" ]   || setenv CRON_SECRET "$(node -e 'console.log(require("crypto").randomBytes(16).toString("hex"))')"
+[ -n "$(getenv SESSION_SECRET)" ] || setenv SESSION_SECRET "$(node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))')"
+note "Web board (optional now, see README > Web board): LINE Login channel in the SAME provider + a LIFF app"
+ask LINE_LOGIN_CHANNEL_ID "LINE Login channel ID (numbers), Enter to skip" "" optional
+ask LIFF_ID "LIFF ID (looks like 2001234567-AbCdEfGh), Enter to skip" "" optional
 
 bold "3/6  APIs and the bot's service account"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
@@ -92,7 +96,8 @@ node -e '
   const fs = require("fs");
   const keep = ["LINE_CHANNEL_SECRET","LINE_CHANNEL_ACCESS_TOKEN","SHEET_ID","TEAM_SEED","GEMINI_API_KEY","GEMINI_MODELS",
     "ANTHROPIC_API_KEY","CLAUDE_MODEL","LLM_PROVIDER","BOT_NAME","TIMEZONE","CRON_SECRET","MORNING_HOUR","EVENING_HOUR",
-    "MONDAY_HOUR","FRIDAY_HOUR","REMINDER_DAYS","OVERDUE_TAG_AFTER_DAYS","PUSH_MONTHLY_LIMIT"];
+    "MONDAY_HOUR","FRIDAY_HOUR","REMINDER_DAYS","OVERDUE_TAG_AFTER_DAYS","PUSH_MONTHLY_LIMIT",
+    "LIFF_ID","LINE_LOGIN_CHANNEL_ID","SESSION_SECRET"];
   const env = Object.fromEntries(fs.readFileSync(".env","utf8").split("\n").filter(l => l.includes("=") && !l.startsWith("#"))
     .map(l => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]));
   console.log(keep.filter(k => env[k]).map(k => k + ": " + JSON.stringify(env[k])).join("\n"));
@@ -135,3 +140,8 @@ note "3. Share the Sheet with $SA as Editor (if not done)."
 note "4. The admin adds the bot as a friend and sends:  ฉันคือ <ชื่อเล่น>"
 note "5. Add the bot to the team LINE group; the admin types:  @$(getenv BOT_NAME) ใช้กลุ่มนี้"
 note "6. Everyone else adds the bot as a friend and sends:  ฉันคือ <ชื่อเล่น>"
+if [ -n "$(getenv LIFF_ID)" ]; then
+  note "7. Web board: https://liff.line.me/$(getenv LIFF_ID)  (LIFF endpoint must be $URL/board)"
+else
+  note "7. Optional web board: README > Web board, then re-run this script"
+fi
