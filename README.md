@@ -73,7 +73,7 @@ You need: a LINE Official Account, a Google Cloud project with billing turned
 on (Cloud Run requires billing, but this stays inside the free tier), a Gemini
 key, and the Sheet.
 
-1. **LINE**: go to <https://developers.line.biz/console/>, create a provider, then create a **Messaging API** channel (this also creates the LINE Official Account). From the channel, copy the **Channel secret** (Basic settings) and issue a **Channel access token** (Messaging API tab).
+1. **LINE**: Messaging API channels are no longer created in the Developers console. First create a **LINE Official Account** named `Norse` at <https://manager.line.biz/> (free plan). Then, in Official Account Manager, go to **Settings → Messaging API → Enable Messaging API** and create a provider (e.g. `NORSE`). In <https://developers.line.biz/console/>, open that channel: the **Channel secret** is under *Basic settings*, and the **Channel access token (long-lived)** is issued at the bottom of the *Messaging API* tab. Keep both on your own computer; `setup.sh` asks for them (input is hidden).
 2. **Gemini key**: <https://aistudio.google.com/apikey>. Check **Rate limits** there for the current free models, and set `GEMINI_MODELS` to match.
 3. **Sheet**: your friend creates an empty Google Sheet and copies its URL.
 4. **Deploy**: open <https://shell.cloud.google.com> on *your* Google account, then:
