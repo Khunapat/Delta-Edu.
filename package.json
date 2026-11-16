@@ -12,10 +12,11 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "test": "node --test test/*.test.js",
-    "check": "for f in src/*.js src/ai/*.js src/board/*.js board/client.js scripts/*.js scripts/*.mjs scripts/rich-menu/*.mjs; do node --check $f || exit 1; done",
+    "check": "for f in src/*.js src/ai/*.js src/board/*.js board/client.js scripts/*.js scripts/*.mjs scripts/rich-menu/*.mjs scripts/brand/*.mjs; do node --check $f || exit 1; done",
     "set-webhook": "node scripts/set-webhook.js",
     "rich-menu": "node scripts/rich-menu.js",
     "rich-menu:render": "node scripts/rich-menu/render.mjs",
+    "brand:render": "node scripts/brand/render.mjs",
     "setup": "bash scripts/setup.sh",
     "preview": "node scripts/preview-cards.mjs > cards.html"
   },

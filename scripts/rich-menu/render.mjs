@@ -13,6 +13,10 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
 let html = readFileSync(join(here, 'menu.html'), 'utf8');
+// The NORSE wordmark (brand/norse-logo.svg) on the hero tile.
+const logo = readFileSync(join(here, '..', '..', 'brand', 'norse-logo.svg'), 'utf8')
+  .replace('<svg ', '<svg style="height:30px;width:auto;display:block;color:rgba(12,23,21,.6)" ');
+html = html.replace('<!--NORSE_LOGO-->', logo);
 const dir = process.env.FONT_DIR;
 if (dir && existsSync(dir)) {
   const faces = readdirSync(dir).filter((f) => f.endsWith('.woff2')).map((f) => {

@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'board');
+const BRAND = join(ROOT, '..', 'brand');
 
 // The page was written for claude.ai and emails. Here, people are told in LINE.
 export const PAGE_TEXT = [
@@ -27,12 +28,24 @@ export const PAGE_TEXT = [
   ['"Sign in to claude.ai with access to this board to see your team\'s tasks."', '"เปิดบอร์ดจากเมนู Norse ใน LINE เพื่อเข้าสู่ระบบ"'],
 ];
 
-/** The dashboard HTML with our runtime added before its own script, and email wording swapped for LINE. */
-export function preparePage(html, { liffId = '' } = {}) {
+const LOGO_AT = '<b>NORSE</b></div>';
+const LOGO_CSS = '<link rel="icon" href="/brand/icon.svg" type="image/svg+xml">\n'
+  + '<style>.logo b.norse-wm{display:flex;align-items:center;line-height:0}.logo b.norse-wm svg{height:17px;width:auto;color:var(--ink)}</style>\n';
+
+/**
+ * The dashboard HTML with our runtime added before its own script, email wording
+ * swapped for LINE, and the NORSE wordmark (brand/norse-logo.svg) in the sidebar.
+ */
+export function preparePage(html, { liffId = '', logoSvg = '' } = {}) {
   const missing = [];
   for (const [from, to] of PAGE_TEXT) {
     if (html.includes(from)) html = html.split(from).join(to);
     else missing.push(from.slice(0, 50));
+  }
+  if (logoSvg) {
+    if (html.includes(LOGO_AT)) html = html.replace(LOGO_AT, `<b class="norse-wm">${logoSvg.trim()}</b></div>`);
+    else missing.push(LOGO_AT);
+    html = html.replace('</head>', LOGO_CSS + '</head>');
   }
   const inject = `<script>window.NORSE_BOARD=${JSON.stringify({ liffId })};</script>\n`
     + (liffId ? '<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>\n' : '')
@@ -48,7 +61,8 @@ export function boardRouter({ store, auth, init, onChange = async () => {}, liff
   const loadPage = () => {
     if (page) return page;
     if (!existsSync(pageFile)) return null;
-    const out = preparePage(readFileSync(pageFile, 'utf8'), { liffId });
+    const logoSvg = existsSync(join(BRAND, 'norse-logo.svg')) ? readFileSync(join(BRAND, 'norse-logo.svg'), 'utf8') : '';
+    const out = preparePage(readFileSync(pageFile, 'utf8'), { liffId, logoSvg });
     if (out.missing.length) console.warn('board page: text not found (page changed?):', out.missing.join(' | '));
     page = out.html;
     return page;
@@ -60,6 +74,7 @@ export function boardRouter({ store, auth, init, onChange = async () => {}, liff
     if (!html) return res.status(404).send('board page missing');
     res.set('Cache-Control', 'no-cache').type('html').send(html);
   });
+  r.use('/brand', express.static(BRAND, { maxAge: '7d' }));
   r.get('/board/client.js', (_req, res) => res.set('Cache-Control', 'no-cache').type('application/javascript').send(client));
 
   const api = express.Router();

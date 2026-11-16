@@ -200,3 +200,21 @@ test('"บอร์ด" in chat or group gives a button that opens the board in 
   const r = await w.say('Non' in w.uid ? 'Non' : 'Best', 'แดชบอร์ด');
   assert.match(flat(r), /"uri":"https:\/\/liff\.line\.me\/2001-Ab"/);
 });
+
+test('brand: the NORSE wordmark replaces the sidebar text; favicon and logo files are served', async () => {
+  const real = readFileSync(new URL('../board/index.html', import.meta.url), 'utf8');
+  const logoSvg = readFileSync(new URL('../brand/norse-logo.svg', import.meta.url), 'utf8');
+  const { html, missing } = preparePage(real, { liffId: 'x', logoSvg });
+  assert.deepEqual(missing, []);
+  assert.ok(!html.includes('<b>NORSE</b></div>'));
+  assert.match(html, /<b class="norse-wm"><svg [^>]*aria-label="NORSE"/);
+  assert.match(html, /<link rel="icon" href="\/brand\/icon\.svg"/);
+  const w = await boardWorld();
+  const s = await serve(w);
+  try {
+    const r = await fetch(`${s.base}/brand/icon.svg`);
+    assert.equal(r.status, 200);
+    assert.match(r.headers.get('content-type'), /svg/);
+    assert.equal((await fetch(`${s.base}/brand/line-profile.png`)).status, 200);
+  } finally { s.close(); }
+});

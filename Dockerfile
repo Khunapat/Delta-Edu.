@@ -5,4 +5,5 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY src ./src
 COPY board ./board
+COPY brand ./brand
 CMD ["node", "src/index.js"]

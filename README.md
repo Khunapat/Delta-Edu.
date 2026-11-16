@@ -140,11 +140,27 @@ the claude.ai runtime: same `db`/`user` calls, backed by `/api/board/*`) and swa
 the email wording for LINE. To update the page, replace `board/index.html` and run
 the tests: they fail if a swapped sentence no longer matches.
 
+## Logo
+
+`brand/norse-logo.svg` is the NORSE wordmark as a vector (traced from the brand
+image; `fill="currentColor"`, so it takes the text colour where it is used). The
+board's sidebar and tab icon, and the menu bar's hero tile, use it. Files for LINE
+(upload them by hand; LINE has no API for these):
+
+| File | Where |
+| --- | --- |
+| `brand/line-profile.png` (640×640) | Official Account Manager → Settings → Account settings → profile picture |
+| `brand/line-cover.png` (1080×878) | Official Account Manager → Business profile → cover photo |
+| `brand/icon-512.png` | LINE Developers → the LINE Login channel → Basic settings → App icon (shown when signing in to the board) |
+| `brand/line-profile-dark.png` | alternative dark profile picture |
+
+`npm run brand:render` redraws them from the SVG (needs Playwright).
+
 ## Develop
 
 ```bash
 npm install
-npm test          # 46 tests, no network
+npm test          # 47 tests, no network
 npm run preview   # cards.html: rough preview of every card with sample data
 ```
 
