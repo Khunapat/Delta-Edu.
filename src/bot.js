@@ -13,6 +13,7 @@ import * as F from './flex.js';
 import { mentionText } from './line.js';
 
 const DRAFT_TTL_MS = 24 * 3600_000;
+const NEW_TASK = /^งานใหม่\s*[:：]?/;
 const AWAIT_TTL_MS = 30 * 60_000;
 
 export class Bot {
@@ -137,6 +138,15 @@ export class Bot {
       await this.db.kvDel('await:' + c.uid);
     }
     if (cmd) return this.onCommand(c, cmd);
+
+    // "งานใหม่: ..." (from the menu bar's เพิ่มงาน button) always means a new task,
+    // never an update, even if it contains words like เสร็จ or เลื่อน.
+    const fresh = NEW_TASK.exec(text.trim());
+    if (fresh) {
+      const rest = text.trim().slice(fresh[0].length).trim();
+      if (!rest) return this.reply(c, F.textMsg('งานอะไร ใครทำ ส่งเมื่อไหร่? พิมพ์ต่อได้เลย เช่น "งานใหม่: ทำ deck ส่งพฤหัส"'));
+      return this.withAi(c, `สร้างงานใหม่: ${rest}`, {});
+    }
 
     // "mockup เสร็จแล้ว" / "ขอเลื่อนเป็นจันทร์" / "ติด supplier ยังไม่ตอบ" without AI when clear.
     const action = detectUpdate(text);
@@ -509,6 +519,7 @@ export class Bot {
     const p = new URLSearchParams(c.event.postback?.data || '');
     const params = c.event.postback?.params || {};
     const a = p.get('a');
+    if (a === 'kbd') return; // menu bar "เพิ่มงาน": it only opens the keyboard
     if (!c.member) return this.reply(c, F.textMsg(`ยังไม่รู้จักกัน ทักแชทส่วนตัวแล้วพิมพ์ "ฉันคือ <ชื่อเล่น>" ก่อนนะ`));
     if (c.chat === 'group' && !c.isTeamGroup) return;
 

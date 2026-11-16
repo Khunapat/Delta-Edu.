@@ -26,6 +26,12 @@ look of the NORSE Project Overview dashboard.
 | `mockup เสร็จแล้ว` · `ขอเลื่อนเป็นจันทร์` · `ติด supplier ยังไม่ตอบ` | Updated without AI when it's clear which task you mean; otherwise you get buttons to pick the task. |
 | `วันนี้ทำอะไรดี` | Today / overdue / due soon / blocked. |
 
+**Menu bar** (1:1 chat only; LINE doesn't show menus in groups): **งานฉัน ·
+วันนี้ทำอะไรดี · งานทีม / เพิ่มงาน · ตั้งค่า · วิธีใช้**. Each button sends the
+command, so a tap costs no push and no AI. **เพิ่มงาน** opens the keyboard with
+`งานใหม่: ` typed in; a message starting with `งานใหม่:` always makes a new
+task card and is never read as an update.
+
 The group only sees the result: a **✓ line** (sent with the bot's next group
 reply, or in the 18:00 round-up) or the **🚧 blocked line** asking who can help.
 
@@ -94,11 +100,16 @@ Re-run `./scripts/setup.sh` to deploy new code.
 
 ```bash
 npm install
-npm test          # 30 tests, no network
+npm test          # 35 tests, no network
 npm run preview   # cards.html: rough preview of every card with sample data
 ```
 
 Without `SHEET_ID` the bot uses an in-memory sheet (data is lost on restart).
+
+**Menu bar**: `setup.sh` uploads it. To change it, edit `src/richmenu.js`
+(buttons) and `scripts/rich-menu/menu.html` (look), run `npm run rich-menu:render`
+(needs Playwright) to redraw `menu.png`, commit, then `npm run rich-menu` in
+Cloud Shell. Re-running with no changes does nothing.
 
 ## Code map
 
@@ -110,6 +121,7 @@ Without `SHEET_ID` the bot uses an in-memory sheet (data is lost on restart).
 - `src/ai/`: Gemini / Claude providers, model fallback, usage counter, prompt + JSON schema
 - `src/sheets.js`, `src/team.js`: the Sheet as a database; members and tasks
 - `src/line.js`: replies, counted pushes, @mentions
+- `src/richmenu.js`, `scripts/rich-menu.js`, `scripts/rich-menu/`: the 1:1 menu bar (buttons, upload script, design + PNG)
 - `src/app.js`: HTTP routes (`/webhook`, `/health`, `/cron/tick`); `src/index.js` wires it all up
 
 ## Next (MVP 2–3)

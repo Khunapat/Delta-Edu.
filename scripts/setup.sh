@@ -115,8 +115,9 @@ else
 fi
 note "$JOB: every hour on the hour from 07:00 to 21:00 Bangkok time"
 
-bold "6/6  LINE webhook"
+bold "6/6  LINE webhook and menu bar"
 LINE_CHANNEL_ACCESS_TOKEN="$(getenv LINE_CHANNEL_ACCESS_TOKEN)" node scripts/set-webhook.js "$URL/webhook" || note "Set it by hand: $URL/webhook"
+node scripts/rich-menu.js || note "Menu bar not set; run: node scripts/rich-menu.js"
 
 bold "Check the Sheet connection"
 if curl -fsS "$URL/health" >/dev/null 2>&1; then
