@@ -73,6 +73,18 @@ SA="${SERVICE}@${PROJECT}.iam.gserviceaccount.com"
 gcloud iam service-accounts describe "$SA" >/dev/null 2>&1 || \
   gcloud iam service-accounts create "$SERVICE" --display-name "NORSE LINE bot" >/dev/null
 note "service account: $SA"
+# Let you deploy Cloud Run "as" the bot's account. A new service account takes a
+# little while to appear everywhere in Google Cloud, so retry for up to ~2 min.
+ME="$(gcloud config get-value account 2>/dev/null)"
+for i in 1 2 3 4 5 6 7 8; do
+  if gcloud iam service-accounts add-iam-policy-binding "$SA" --member "user:$ME" \
+      --role roles/iam.serviceAccountUser --condition None >/dev/null 2>&1; then
+    note "you can deploy as the bot's account"; break
+  fi
+  [ "$i" = 8 ] && die "Could not give $ME the Service Account User role on $SA. Wait a minute and re-run."
+  note "waiting for the new service account to be ready... ($i)"; sleep 15
+done
+sleep 10
 
 bold "4/6  Deploy to Cloud Run ($REGION)"
 ENV_YAML="$(mktemp --suffix .yaml)"
