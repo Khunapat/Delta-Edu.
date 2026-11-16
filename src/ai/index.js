@@ -49,6 +49,7 @@ export class Ai {
       return await this.provider.extract({ system, parts, schema });
     } catch (err) {
       if (err instanceof AiResting) throw err;
+      if (err?.timeout) throw new AiResting(null, { daily: false }); // too slow: "try again in a moment"
       if (isQuotaError(err)) throw new AiResting(isDailyQuota(err) || (await this.resting()) ? nextReset() : null, { daily: isDailyQuota(err) });
       throw err;
     }

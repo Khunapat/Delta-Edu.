@@ -7,6 +7,9 @@
 // is enough to keep read-modify-write safe.
 
 import { google } from 'googleapis';
+
+// No Google call may hang a chat reply: give up after 20 s (googleapis has no default limit).
+google.options({ timeout: 20_000 });
 import { withLock } from './lock.js';
 
 export const SCHEMA = {

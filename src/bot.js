@@ -108,7 +108,12 @@ export class Bot {
 
     // Waiting for a typed answer from this person (e.g. a new task title)?
     if (!botMentioned) {
-      if (c.isTeamGroup && c.member && await this.peekAwait(c)) return this.onAwaited(c, msg.text);
+      // A typed answer we asked for (blocker reason, task title...). Meeting notes in the group
+      // must come as a photo / voice note, or text with @Norse or "บันทึกประชุม:", so normal
+      // chat right after "@Norse ประชุม" is never taken as notes.
+      const waiting = c.isTeamGroup && c.member ? await this.peekAwait(c) : null;
+      if (waiting && waiting.type !== 'meeting') return this.onAwaited(c, msg.text);
+      if (waiting?.type === 'meeting' && MEETING_INLINE.test(msg.text.trim())) return this.processMeeting(c, { text: MEETING_INLINE.exec(msg.text.trim())[1] });
       // Someone not linked yet typed "ฉันคือ ..." here: point them to the 1:1 chat (a free reply).
       if (!c.member && (c.isTeamGroup || !c.teamGroupSet) && command(msg.text)?.cmd === 'link') return this.linkHere(c);
       return; // ignore normal chatter: no AI, no reply
@@ -134,6 +139,11 @@ export class Bot {
     if (cmd) return this.onCommand(c, cmd);
     const notes = MEETING_INLINE.exec(text);
     if (notes) return this.processMeeting(c, { text: notes[1] });
+    // "@Norse <notes>" right after "@Norse ประชุม" from the same person = the meeting notes
+    if ((await this.peekAwait(c))?.type === 'meeting') {
+      await this.db.kvDel('await:' + c.uid);
+      return this.processMeeting(c, { text });
+    }
 
     const mentioned = [...new Set(Object.values(nickByUid))];
     return this.withAi(c, text, { mentioned });
@@ -260,7 +270,7 @@ export class Bot {
           title: 'ส่งโน้ตประชุมมาได้เลย 📝', sub: 'ภายใน 30 นาที · จากคุณคนเดียว',
           alt: 'ส่งโน้ตประชุมมาได้เลย',
           steps: [
-            { text: 'พิมพ์สรุปสั้นๆ ว่าคุยอะไร ใครทำอะไร' },
+            { text: c.chat === 'group' ? `พิมพ์ @${this.name} ตามด้วยสรุปสั้นๆ ว่าคุยอะไร ใครทำอะไร` : 'พิมพ์สรุปสั้นๆ ว่าคุยอะไร ใครทำอะไร' },
             { text: 'หรืออัดเสียง (กดไมค์ค้าง) เล่าสรุปประชุม' },
             { text: 'หรือถ่ายรูปไวท์บอร์ด / สมุดโน้ต' },
           ],
@@ -301,6 +311,7 @@ export class Bot {
   // ======================================================================
   // AI path (only for free-form text)
   async withAi(c, text, { mentioned = [] }) {
+    c.slow = true; // if the AI is slow and LINE's reply window closes, send the answer as one push
     if (c.chat === 'direct') this.line.showLoading(c.uid).catch(() => {});
     const today = this.today();
     const [members, tasks, milestones, streams, knowledge] = await Promise.all([

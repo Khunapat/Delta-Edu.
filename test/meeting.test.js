@@ -112,3 +112,16 @@ test('slow reading: an expired reply token turns into one push to the same chat'
   assert.equal(p.to, 'Ujai');
   assert.match(p.messages[0].altText, /สรุปประชุม/);
 });
+
+test('group: after "@Norse ประชุม", plain chat stays chat; "@Norse <notes>" is the notes', async () => {
+  const w = await makeWorld();
+  await w.say('Jai', 'ประชุม');
+  const before = w.client.replies.length;
+  await w.say('Jai', 'กินข้าวกันยัง', false);
+  assert.equal(w.client.replies.length, before, 'normal chat ignored');
+  assert.equal(w.provider.calls.length, 0, 'no AI spent');
+  w.provider.next({ ...AI_MEETING, action_items: [] });
+  const r = await w.say('Jai', 'ตกลงว่าจะใช้ Pocket Press Slim');
+  assert.ok(w.provider.calls.at(-1).schema.properties.is_meeting, 'read as meeting notes');
+  assert.match(r[0].altText, /สรุปประชุม/);
+});

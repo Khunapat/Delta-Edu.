@@ -203,11 +203,22 @@ board's sidebar and tab icon, and the menu bar's hero tile, use it. Files for LI
 `npm run brand:render` redraws them from the SVG, and `npm run banners:render` redraws
 the animated banners from `scripts/banners/banners.html` (both need Playwright).
 
+## When something is slow or silent
+
+- Every AI call has a time limit (20 s per model, ~45 s in all); a slow or stuck
+  model is skipped for the next one in `GEMINI_MODELS`, and if all are too slow the
+  bot says "AI คิวแน่น ลองใหม่". Gemini 3 models are asked to think "low" so short
+  answers stay quick. Google Sheets calls give up after 20 s.
+- An answer that arrives after LINE's reply window is sent as one push instead.
+- To see what happened, in Cloud Shell:
+  `gcloud run services logs read norse-bot --region asia-southeast1 --limit 80`
+  (each AI call logs its model and time, e.g. `gemini gemini-3.8-flash ok 2310ms`).
+
 ## Develop
 
 ```bash
 npm install
-npm test          # 63 tests, no network
+npm test          # 67 tests, no network
 npm run preview   # cards.html: every card (real code, sample data) as LINE lays it out
 ```
 
