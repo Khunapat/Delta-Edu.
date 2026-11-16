@@ -193,3 +193,16 @@ test('TEAM_SEED carries aliases and roles', async () => {
   ]);
   assert.equal((await w.team.memberByName('พี่บอนนี่')).nickname, 'Bonnie');
 });
+
+test('admin who has not linked yet is told to link in the 1:1 chat first; "ฉันคือ" in the group points there', async () => {
+  const w = await makeWorld({ link: false });
+  assert.match(flat(await w.say('Jai', 'ใช้กลุ่มนี้')), /ทักแชทส่วนตัว.*ฉันคือ/);
+  assert.match(flat(await w.say('Jai', 'ฉันคือ ใจ', false)), /เชื่อมบัญชีในแชทส่วนตัว/, 'typed without @Norse');
+  assert.match(flat(await w.say('Jai', 'ฉันคือ ใจ')), /เชื่อมบัญชีในแชทส่วนตัว/, 'typed with @Norse');
+  assert.equal((await w.team.memberByName('Jai')).line_user_id, '', 'no linking from the group');
+  await w.dm('Jai', 'ฉันคือ เจ');
+  assert.match(flat(await w.say('Jai', 'ใช้กลุ่มนี้')), /ตั้งกลุ่มนี้เป็นกลุ่มทีมแล้ว/);
+  const before = w.client.replies.length;
+  await w.say('Jai', 'ฉันคือ คนที่หิวที่สุดในกลุ่ม', false);
+  assert.equal(w.client.replies.length, before, 'linked people chatting "ฉันคือ ..." are ignored');
+});

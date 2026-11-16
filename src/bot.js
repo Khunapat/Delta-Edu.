@@ -73,6 +73,8 @@ export class Bot {
     // Waiting for a typed answer from this person (e.g. a new task title)?
     if (!botMentioned) {
       if (c.isTeamGroup && c.member && await this.peekAwait(c)) return this.onAwaited(c, msg.text);
+      // Someone not linked yet typed "ฉันคือ ..." here: point them to the 1:1 chat (a free reply).
+      if (!c.member && (c.isTeamGroup || !c.teamGroupSet) && command(msg.text)?.cmd === 'link') return this.linkHere(c);
       return; // ignore normal chatter: no AI, no reply
     }
 
@@ -85,6 +87,7 @@ export class Bot {
     const text = stripMentions(msg.text, mentionees, this.name, nickByUid);
     const cmd = command(text);
 
+    if (cmd?.cmd === 'link' && (c.isTeamGroup || !c.teamGroupSet)) return this.linkHere(c);
     if (!c.isTeamGroup) {
       if (cmd?.cmd === 'register_group') return this.registerGroup(c);
       if (!c.teamGroupSet) return this.reply(c, F.textMsg(`ยังไม่ได้ตั้งกลุ่มทีม ให้ admin พิมพ์ "@${this.name} ใช้กลุ่มนี้"`));
@@ -98,8 +101,17 @@ export class Bot {
     return this.withAi(c, text, { mentioned });
   }
 
+  linkHere(c) {
+    return this.reply(c, F.textMsg(c.member
+      ? `เชื่อมแล้วนะ ${c.member.nickname} 🙂`
+      : `เชื่อมบัญชีในแชทส่วนตัวนะ 🙂 แตะชื่อ ${this.name} > แชท แล้วพิมพ์ "ฉันคือ <ชื่อเล่น>" ตรงนั้น`));
+  }
+
   async registerGroup(c) {
-    if (!c.member?.admin) {
+    if (!c.member) {
+      return this.reply(c, F.textMsg(`ยังไม่รู้จักกัน 🙂 admin ทักแชทส่วนตัวกับ ${this.name} แล้วพิมพ์ "ฉันคือ <ชื่อเล่น>" ก่อน แล้วค่อยพิมพ์ "@${this.name} ใช้กลุ่มนี้" ที่นี่อีกครั้ง`));
+    }
+    if (!c.member.admin) {
       return this.reply(c, F.textMsg(`ต้องเป็น admin ของทีม (คอลัมน์ role = admin ในแท็บ Members) และเชื่อม LINE แล้ว ถึงจะตั้งกลุ่มได้`));
     }
     // Only one team group, and it can't be moved from another group by chat.

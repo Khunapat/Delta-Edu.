@@ -94,7 +94,7 @@ Re-run `./scripts/setup.sh` to deploy new code.
 
 ```bash
 npm install
-npm test          # 29 tests, no network
+npm test          # 30 tests, no network
 npm run preview   # cards.html: rough preview of every card with sample data
 ```
 
