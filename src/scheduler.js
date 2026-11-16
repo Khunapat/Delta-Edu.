@@ -121,6 +121,11 @@ export class Scheduler {
       title: 'แผนสัปดาห์นี้ 💪',
       subtitle: `${formatDay(mon, today)} – ${formatDay(sun, today)}`,
       today,
+      stats: [
+        { label: 'ส่งสัปดาห์นี้', value: week.length, color: '#8FD9C6' },
+        { label: 'ค้างจากก่อน', value: late.length, color: '#E8B14A' },
+        { label: 'ติดอยู่', value: blocked.length, color: '#F07560' },
+      ],
       sections: [
         { label: `📅 ส่งสัปดาห์นี้ (${week.length})`, lines: byPerson },
         { label: '🏁 Milestone', lines: ms.map((m) => `${m.title} · ${formatDay(m.date, today)}`) },
@@ -147,6 +152,11 @@ export class Scheduler {
       title: 'สรุปสัปดาห์ 🙌',
       subtitle: `เสร็จ ${done.length} · ช้า ${late.length} · ติด ${blocked.length}`,
       today,
+      stats: [
+        { label: 'เสร็จ', value: done.length, color: '#78D18F' },
+        { label: 'ช้า', value: late.length, color: '#E8B14A' },
+        { label: 'ติดอยู่', value: blocked.length, color: '#F07560' },
+      ],
       sections: [
         { label: `✓ เสร็จสัปดาห์นี้ (${done.length})`, color: '#2F7D4A', lines: done.map((t) => `${t.title} (${ownersOf(t).join(', ')})`) },
         { label: `🔴 ช้า (${late.length})`, color: '#C8462F', lines: late.map((t) => `${t.title} (${ownersOf(t).join(', ')}) ${relDays(diffDays(today, t.due))}`) },

@@ -74,7 +74,6 @@ export function boardRouter({ store, auth, init, onChange = async () => {}, liff
     if (!html) return res.status(404).send('board page missing');
     res.set('Cache-Control', 'no-cache').type('html').send(html);
   });
-  r.use('/brand', express.static(BRAND, { maxAge: '7d' }));
   r.get('/board/client.js', (_req, res) => res.set('Cache-Control', 'no-cache').type('application/javascript').send(client));
 
   const api = express.Router();

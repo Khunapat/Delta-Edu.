@@ -28,10 +28,18 @@ look of the NORSE Project Overview dashboard.
 
 **Cards, not text**: lists (งานฉัน, งานทีม, digest, weekly posts, ตั้งค่า) and
 outcomes (linked, group set, done, postponed, started, blocked, the ✓ round-up,
-AI resting, help, welcome) are cards in the dashboard style, each with a button
-for the next step. Buttons in group cards send `@Norse …` so the bot hears them.
-Questions that need a choice (which day, who) stay short text with tap buttons.
-`npm run preview` shows them all.
+AI resting, help, welcome) are cards in the dashboard's dark style: mint gradient
+headers with the big number, KPI tiles with bars, a stacked status bar, workload
+bars per person, workstream stripes and stacked avatars. Each has a button for the
+next step; buttons in group cards send `@Norse …` so the bot hears them. Questions
+that need a choice (which day, who) stay short text with tap buttons.
+
+Four **animated banners** (`brand/banner-*.png`, APNG under LINE's 300 KB) top the
+welcome/linked cards, the 08:00 reminder, the done card and the weekly posts. LINE
+downloads them from the bot (`/brand/…`), so the bot needs its public address: it
+takes it from the first request Cloud Run sends it (or `PUBLIC_URL`). Until then
+cards show a gradient header instead. `setup.sh` asks LINE to validate every card
+(`npm run validate-cards`, no messages sent).
 
 **Menu bar** (1:1 chat only; LINE doesn't show menus in groups): **งานฉัน ·
 วันนี้ทำอะไรดี · งานทีม / เพิ่มงาน · ตั้งค่า · วิธีใช้**. Each button sends the
@@ -154,14 +162,15 @@ board's sidebar and tab icon, and the menu bar's hero tile, use it. Files for LI
 | `brand/icon-512.png` | LINE Developers → the LINE Login channel → Basic settings → App icon (shown when signing in to the board) |
 | `brand/line-profile-dark.png` | alternative dark profile picture |
 
-`npm run brand:render` redraws them from the SVG (needs Playwright).
+`npm run brand:render` redraws them from the SVG, and `npm run banners:render` redraws
+the animated banners from `scripts/banners/banners.html` (both need Playwright).
 
 ## Develop
 
 ```bash
 npm install
-npm test          # 47 tests, no network
-npm run preview   # cards.html: rough preview of every card with sample data
+npm test          # 51 tests, no network
+npm run preview   # cards.html: every card (real code, sample data) as LINE lays it out
 ```
 
 Without `SHEET_ID` the bot uses an in-memory sheet (data is lost on restart).
@@ -175,7 +184,7 @@ Cloud Shell. Re-running with no changes does nothing.
 
 - `src/bot.js`: group and 1:1 handling, drafts, buttons, task updates
 - `src/scheduler.js`: daily digest, overdue tag, weekly posts, evening round-up
-- `src/flex.js`: cards in the dashboard style
+- `src/flex.js`: cards in the dashboard style; `scripts/cards/`: sample cards + a LINE-like renderer for previews
 - `src/dates.js`: Thai dates ("ศุกร์หน้า", "20 พ.ย.", ambiguous phrases become questions)
 - `src/rules.js`: commands and update phrases that need no AI
 - `src/ai/`: Gemini / Claude providers, model fallback, usage counter, prompt + JSON schema

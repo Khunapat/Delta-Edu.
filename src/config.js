@@ -7,6 +7,8 @@ export function loadConfig(env = process.env) {
   return {
     port: num(env.PORT, 8080),
     botName: env.BOT_NAME || 'Norse',
+    // Public https address of this service (for card images). Optional: found from requests.
+    publicUrl: env.PUBLIC_URL || '',
     timeZone: env.TIMEZONE || 'Asia/Bangkok',
 
     line: {

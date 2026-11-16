@@ -1,0 +1,128 @@
+<!doctype html>
+<!-- Animated card banners (800 x 300, loop 3 s), in the dashboard's dark/mint style.
+     Open with #morning, #done, #weekly or #welcome. scripts/banners/render.mjs captures
+     each one frame by frame into brand/banner-<name>.png (animated PNG, LINE limit 300 KB).
+     Every animation's period divides 3 s so the loop is seamless. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --bg:#0c1112; --panel:#141b1d; --ink:#0c1715; --accent:#8fd9c6; --accent2:#5fbfa9; --heroA:#9fe3d1; --heroB:#5fbfa9;
+    --s2:#ac97ee; --s3:#efa064; --s4:#78d18f; --s5:#ea86b8; --s6:#8eaee6; --warn:#e8b14a; }
+  * { margin:0; box-sizing:border-box }
+  html, body { width:800px; height:300px; overflow:hidden; background:var(--bg) }
+  .scene { position:absolute; inset:0; overflow:hidden; display:none }
+  .on { display:block }
+  svg { position:absolute; inset:0; width:100%; height:100% }
+  .mint { background: radial-gradient(120% 140% at 85% 0%, #c6f3e6 0%, transparent 55%), linear-gradient(135deg, var(--heroA), var(--heroB)) }
+  .dark { background: radial-gradient(70% 120% at 50% 50%, rgba(143,217,198,.22) 0%, transparent 70%), var(--panel) }
+  .wm { position:absolute; top:26px; left:30px; width:118px; color:rgba(12,23,21,.55) }
+  .wm.light { color:rgba(231,239,237,.55) }
+  .wm svg { position:static; width:100%; height:auto }
+
+  /* flowing breath lines: each path is drawn over 2 periods and slides one period per loop */
+  @keyframes slide1 { to { transform: translateX(-400px) } }
+  @keyframes slide2 { to { transform: translateX(-800px) } }
+  .flow1 { animation: slide1 3s linear infinite }
+  .flow2 { animation: slide2 3s linear infinite }
+  @keyframes glow { 0%,100% { opacity:.35; transform: scale(1) } 50% { opacity:.6; transform: scale(1.1) } }
+  .sun { transform-box: fill-box; transform-origin: center; animation: glow 3s ease-in-out infinite }
+  @keyframes rise { 0% { transform: translateY(40px); opacity:0 } 20% { opacity:.9 } 100% { transform: translateY(-260px); opacity:0 } }
+  .p { animation: rise 3s linear infinite }
+
+  /* done: ripples + check */
+  @keyframes ripple { 0% { transform: scale(.4); opacity:.9 } 100% { transform: scale(2.6); opacity:0 } }
+  .rip { transform-box: fill-box; transform-origin: center; animation: ripple 3s ease-out infinite }
+  @keyframes breathe { 0%,100% { transform: scale(.94) } 50% { transform: scale(1.04) } }
+  .badge { transform-box: fill-box; transform-origin: center; animation: breathe 1.5s ease-in-out infinite }
+  @keyframes twinkle { 0%,100% { opacity:0; transform: scale(.3) } 30%,60% { opacity:1; transform: scale(1) } }
+  .tw { transform-box: fill-box; transform-origin: center; animation: twinkle 1.5s ease-in-out infinite }
+
+  /* weekly: dots light up along the week */
+  @keyframes lit { 0%,10% { fill:#2a3638 } 20%,85% { fill:var(--accent) } 100% { fill:#2a3638 } }
+  .day { animation: lit 3s linear infinite }
+
+  /* welcome: inhale / exhale */
+  @keyframes inhale { 0%,100% { transform: scale(.82); opacity:.55 } 50% { transform: scale(1.06); opacity:.95 } }
+  .lung { transform-box: fill-box; transform-origin: center; animation: inhale 3s ease-in-out infinite }
+</style>
+</head>
+<body>
+
+<!-- MORNING: sunrise glow + flowing breath lines on mint -->
+<div class="scene mint" id="morning">
+  <svg viewBox="0 0 800 300">
+    <circle class="sun" cx="640" cy="70" r="70" fill="#ffffff" opacity=".7"/>
+    <g class="flow1"><path d="M0 190 C100 160 100 220 200 190 S300 160 400 190 S500 220 600 190 S700 160 800 190 S900 220 1000 190 S1100 160 1200 190" fill="none" stroke="rgba(12,23,21,.28)" stroke-width="3" stroke-linecap="round"/></g>
+    <g class="flow2"><path d="M0 225 C100 255 100 195 200 225 S300 255 400 225 S500 195 600 225 S700 255 800 225 S900 195 1000 225 S1100 255 1200 225 S1300 195 1400 225 S1500 255 1600 225" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="4" stroke-linecap="round"/></g>
+    <g class="flow1"><path d="M0 255 C100 240 100 270 200 255 S300 240 400 255 S500 270 600 255 S700 240 800 255 S900 270 1000 255 S1100 240 1200 255" fill="none" stroke="rgba(12,23,21,.14)" stroke-width="2" stroke-linecap="round"/></g>
+    <g fill="#ffffff">
+      <circle class="p" cx="120" cy="300" r="4" style="animation-delay:-.2s"/>
+      <circle class="p" cx="260" cy="300" r="3" style="animation-delay:-1.4s"/>
+      <circle class="p" cx="410" cy="300" r="5" style="animation-delay:-2.3s"/>
+      <circle class="p" cx="520" cy="300" r="3" style="animation-delay:-.9s"/>
+      <circle class="p" cx="720" cy="300" r="4" style="animation-delay:-1.9s"/>
+    </g>
+  </svg>
+  <div class="wm"><!--LOGO--></div>
+</div>
+
+<!-- DONE: ripples around a check badge, sparkles in workstream colours -->
+<div class="scene dark" id="done">
+  <svg viewBox="0 0 800 300">
+    <circle class="rip" cx="400" cy="150" r="60" fill="none" stroke="var(--accent)" stroke-width="3"/>
+    <circle class="rip" cx="400" cy="150" r="60" fill="none" stroke="var(--accent)" stroke-width="3" style="animation-delay:-1s"/>
+    <circle class="rip" cx="400" cy="150" r="60" fill="none" stroke="var(--accent)" stroke-width="3" style="animation-delay:-2s"/>
+    <g class="badge">
+      <circle cx="400" cy="150" r="58" fill="url(#g)"/>
+      <path d="M372 152 L393 172 L430 132" fill="none" stroke="#0c1715" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9fe3d1"/><stop offset="1" stop-color="#5fbfa9"/></linearGradient></defs>
+    <g>
+      <path class="tw" d="M200 80 l6 14 14 6 -14 6 -6 14 -6 -14 -14 -6 14 -6z" fill="var(--warn)"/>
+      <path class="tw" d="M610 70 l5 11 11 5 -11 5 -5 11 -5 -11 -11 -5 11 -5z" fill="var(--s5)" style="animation-delay:-.5s"/>
+      <path class="tw" d="M560 230 l6 13 13 6 -13 6 -6 13 -6 -13 -13 -6 13 -6z" fill="var(--s2)" style="animation-delay:-1s"/>
+      <path class="tw" d="M240 220 l5 11 11 5 -11 5 -5 11 -5 -11 -11 -5 11 -5z" fill="var(--s4)" style="animation-delay:-.75s"/>
+      <circle class="tw" cx="150" cy="160" r="5" fill="var(--s6)" style="animation-delay:-.25s"/>
+      <circle class="tw" cx="660" cy="160" r="5" fill="var(--s3)" style="animation-delay:-1.25s"/>
+    </g>
+  </svg>
+  <div class="wm light"><!--LOGO--></div>
+</div>
+
+<!-- WEEKLY: a week of dots lighting up over calm breath lines -->
+<div class="scene dark" id="weekly">
+  <svg viewBox="0 0 800 300">
+    <g class="flow1"><path d="M0 210 C100 185 100 235 200 210 S300 185 400 210 S500 235 600 210 S700 185 800 210 S900 235 1000 210 S1100 185 1200 210" fill="none" stroke="rgba(143,217,198,.35)" stroke-width="3" stroke-linecap="round"/></g>
+    <g class="flow2"><path d="M0 240 C100 265 100 215 200 240 S300 265 400 240 S500 215 600 240 S700 265 800 240 S900 215 1000 240 S1100 265 1200 240 S1300 215 1400 240 S1500 265 1600 240" fill="none" stroke="rgba(143,217,198,.18)" stroke-width="2" stroke-linecap="round"/></g>
+    <line x1="190" y1="120" x2="610" y2="120" stroke="#2a3638" stroke-width="4" stroke-linecap="round"/>
+    <g>
+      <circle class="day" cx="190" cy="120" r="14" fill="#2a3638" style="animation-delay:-3.0s"/>
+      <circle class="day" cx="260" cy="120" r="14" fill="#2a3638" style="animation-delay:-2.75s"/>
+      <circle class="day" cx="330" cy="120" r="14" fill="#2a3638" style="animation-delay:-2.5s"/>
+      <circle class="day" cx="400" cy="120" r="14" fill="#2a3638" style="animation-delay:-2.25s"/>
+      <circle class="day" cx="470" cy="120" r="14" fill="#2a3638" style="animation-delay:-2.0s"/>
+      <circle cx="540" cy="120" r="10" fill="#2a3638"/>
+      <circle cx="610" cy="120" r="10" fill="#2a3638"/>
+    </g>
+  </svg>
+  <div class="wm light"><!--LOGO--></div>
+</div>
+
+<!-- WELCOME: inhale / exhale rings on mint -->
+<div class="scene mint" id="welcome">
+  <svg viewBox="0 0 800 300">
+    <g class="lung"><circle cx="400" cy="150" r="118" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="3"/></g>
+    <g class="lung" style="animation-delay:-.4s"><circle cx="400" cy="150" r="88" fill="rgba(255,255,255,.28)"/></g>
+    <g class="lung" style="animation-delay:-.8s"><circle cx="400" cy="150" r="56" fill="rgba(255,255,255,.55)"/></g>
+    <g class="flow1"><path d="M0 268 C100 248 100 288 200 268 S300 248 400 268 S500 288 600 268 S700 248 800 268 S900 288 1000 268 S1100 248 1200 268" fill="none" stroke="rgba(12,23,21,.2)" stroke-width="3" stroke-linecap="round"/></g>
+  </svg>
+  <div class="wm" style="left:50%;top:50%;width:150px;transform:translate(-50%,-50%);color:rgba(12,23,21,.8)"><!--LOGO--></div>
+</div>
+
+<script>
+  const show = () => { const id = location.hash.slice(1) || 'morning'; document.querySelectorAll('.scene').forEach((s) => s.classList.toggle('on', s.id === id)); };
+  addEventListener('hashchange', show); show();
+</script>
+</body>
+</html>

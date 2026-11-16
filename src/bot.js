@@ -43,7 +43,7 @@ export class Bot {
 
     if (event.type === 'join') {
       return this.reply(c, F.infoMessage({
-        title: `สวัสดี ${this.name} มาแล้ว 👋`, sub: 'ผู้ช่วยทีม NORSE',
+        title: `สวัสดี ${this.name} มาแล้ว 👋`, sub: 'ผู้ช่วยทีม NORSE', banner: 'welcome',
         steps: [
           { text: `admin: ทักแชทส่วนตัวกับ ${this.name} พิมพ์ "ฉันคือ <ชื่อเล่น>"` },
           { text: `admin: พิมพ์ "@${this.name} ใช้กลุ่มนี้" ในกลุ่มนี้` },
@@ -53,7 +53,7 @@ export class Bot {
     }
     if (event.type === 'follow') {
       return this.reply(c, F.infoMessage({
-        title: `สวัสดี นี่ ${this.name} 🌿`, sub: 'ผู้ช่วยทีม NORSE',
+        title: `สวัสดี นี่ ${this.name} 🌿`, sub: 'ผู้ช่วยทีม NORSE', banner: 'welcome',
         lines: ['ครั้งแรก พิมพ์ "ฉันคือ <ชื่อเล่นในทีม>" เพื่อเชื่อมบัญชี (ใช้ได้เฉพาะคนในทีม)'],
       }));
     }
@@ -140,7 +140,7 @@ export class Bot {
     await this.db.log(c.member.nickname, c.groupId, 'register_group');
     c.isTeamGroup = true;
     return this.reply(c, F.infoMessage({
-      title: 'ตั้งกลุ่มนี้เป็นกลุ่มทีมแล้ว ✓', sub: `เรียก @${this.name} เมื่อไหร่ค่อยตอบ คุยกันปกติไม่ต้องห่วง`,
+      banner: 'welcome', title: 'ตั้งกลุ่มนี้เป็นกลุ่มทีมแล้ว ✓', sub: `เรียก @${this.name} เมื่อไหร่ค่อยตอบ คุยกันปกติไม่ต้องห่วง`,
       lines: [`ทุกคนทักแชทส่วนตัวกับ ${this.name} แล้วพิมพ์ "ฉันคือ <ชื่อเล่น>" ครั้งเดียว`],
       buttons: [F.say('งานทีม', `@${this.name} งานทีม`), F.say('วิธีใช้', `@${this.name} วิธีใช้`)],
     }));
@@ -201,7 +201,7 @@ export class Bot {
     await this.db.log(r.member.nickname, 'direct', 'link');
     return this.reply(c, [
       F.infoMessage({
-        title: 'เชื่อมแล้ว ✓', sub: `สวัสดี ${r.member.nickname} 👋`, alt: `เชื่อมแล้ว สวัสดี ${r.member.nickname} 👋`,
+        banner: 'welcome', title: 'เชื่อมแล้ว ✓', sub: `สวัสดี ${r.member.nickname} 👋`, alt: `เชื่อมแล้ว สวัสดี ${r.member.nickname} 👋`,
         lines: ['ต่อไปนี้งานของคุณจะแจ้งเตือนในแชทนี้ (วันละไม่เกิน 1 ครั้ง)'],
         buttons: [F.say('งานฉัน', 'งานฉัน'), F.say('วันนี้ทำอะไรดี', 'วันนี้ทำอะไรดี')],
       }),
