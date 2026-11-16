@@ -1,0 +1,106 @@
+# Norse: the NORSE team's LINE bot
+
+One LINE bot that lives in the team group and in each member's 1:1 chat.
+Tasks live in a Google Sheet (any teammate can own it). The bot is the only
+program that writes to it, and it checks every change first. Cards follow the
+look of the NORSE Project Overview dashboard.
+
+## What MVP 1 does
+
+**Team group** (the AI only runs when someone types `@Norse`)
+
+| Type | What happens |
+| --- | --- |
+| `@Norse บอนนี่ กับ เจ ทำ mockup กล่อง ส่งศุกร์` | A card with owners, due date and workstream, with **ยืนยัน · วันส่ง · คนทำ · ชื่องาน · หมวด · ยกเลิก**. Nothing is saved until someone taps ยืนยัน. Unknown names and unclear dates ("อาทิตย์หน้า") are asked about; the bot never guesses an owner or a date. |
+| `@Norse งานทีม` | Done / in progress / overdue / blocked tiles, who is on what, and the risk list. No AI. |
+| `@Norse <question>` | Answered from the Sheet only; says so when there is no record. |
+| `@Norse ใช้กลุ่มนี้` | (admin, once) makes this the team group. Other groups are ignored. |
+| `@Norse ตั้งค่า` | AI use per model today, reset time, LINE pushes used this month. |
+
+**1:1 chat**
+
+| Type / tap | What happens |
+| --- | --- |
+| `ฉันคือ บอนนี่` | Links your LINE account to your team nickname (once). Only names in the Members tab can link. |
+| `งานฉัน` | Your open tasks by due date, each with **เสร็จแล้ว ✓ · ขอเลื่อน (date picker) · ติดอยู่**. |
+| `mockup เสร็จแล้ว` · `ขอเลื่อนเป็นจันทร์` · `ติด supplier ยังไม่ตอบ` | Updated without AI when it's clear which task you mean; otherwise you get buttons to pick the task. |
+| `วันนี้ทำอะไรดี` | Today / overdue / due soon / blocked. |
+
+The group only sees the result: a **✓ line** (sent with the bot's next group
+reply, or in the 18:00 round-up) or the **🚧 blocked line** asking who can help.
+
+**Reminders** (one hourly Cloud Scheduler job)
+
+- 08:00 private DM, **at most one push per person per day**: new tasks, due in 5/3/1 days, due today (with buttons), overdue.
+- A new task also sends a DM right away, unless that person already got a push that day.
+- Overdue: DM first. After 2 days, one gentle `@tag` in the group, once per task.
+- Monday 09:00 plan and milestones; Friday 17:00 done / late / blocked; 18:00 ✓ round-up.
+
+**Saving AI quota**: commands and buttons never call the AI. In the group the AI
+runs only on `@Norse`. Gemini models are tried in order (`GEMINI_MODELS`); when
+all are used up, the bot says when the AI is back, and commands and buttons
+keep working.
+
+**Push budget**: LINE's Thai free plan allows 300 pushes a month, and a push to
+a 3-person group counts as 3. Pushes are counted. Non-urgent ones stop at 90%
+of the allowance; all stop at 100%.
+
+## The Sheet
+
+The bot creates these tabs on first start (an empty Sheet is fine):
+
+- **Members**: `nickname, aliases, role, line_user_id, …`. Put `admin` in *role* for admins. *aliases* holds other spellings (e.g. `บอนนี่`). Contact columns are never shown in the group or sent to the AI.
+- **Tasks**: same fields as the dashboard (`title, owner, stream, status, priority, start, due, blocker, …`). You can edit rows by hand: keep `status` to todo / doing / blocked / done, and dates as `2026-11-20` or `20/11/2026`.
+- **Milestones**: `title, date, stream, done`.
+- **Kv**, **Log**: the bot's own bookkeeping. Leave them alone.
+
+## Setup (about 20 minutes)
+
+You need: a LINE Official Account, a Google Cloud project with billing turned
+on (Cloud Run requires billing, but this stays inside the free tier), a Gemini
+key, and the Sheet.
+
+1. **LINE**: go to <https://developers.line.biz/console/>, create a provider, then create a **Messaging API** channel (this also creates the LINE Official Account). From the channel, copy the **Channel secret** (Basic settings) and issue a **Channel access token** (Messaging API tab).
+2. **Gemini key**: <https://aistudio.google.com/apikey>. Check **Rate limits** there for the current free models, and set `GEMINI_MODELS` to match.
+3. **Sheet**: your friend creates an empty Google Sheet and copies its URL.
+4. **Deploy**: open <https://shell.cloud.google.com> on *your* Google account, then:
+   ```bash
+   git clone <this repo> norse-bot && cd norse-bot
+   ./scripts/setup.sh
+   ```
+   The script asks for the values above, enables the APIs, creates the service account `norse-bot@<project>.iam.gserviceaccount.com`, deploys to Cloud Run, creates the hourly job and sets the LINE webhook.
+5. **Share the Sheet**: your friend shares it with that service-account email as **Editor**. Check `<URL>/healthz`.
+6. **LINE settings**:
+   - Developers console: turn on **Use webhook** and **Allow bot to join group chats**.
+   - Official Account Manager: turn off **auto-reply** and **greeting** messages.
+7. Add the bot to the team group. The admin types `@Norse ใช้กลุ่มนี้`. Everyone adds the bot as a friend and sends `ฉันคือ <ชื่อเล่น>`.
+
+Re-run `./scripts/setup.sh` to deploy new code.
+
+## Develop
+
+```bash
+npm install
+npm test          # 19 tests, no network
+npm run preview   # cards.html: rough preview of every card with sample data
+```
+
+Without `SHEET_ID` the bot uses an in-memory sheet (data is lost on restart).
+
+## Code map
+
+- `src/bot.js`: group and 1:1 handling, drafts, buttons, task updates
+- `src/scheduler.js`: daily digest, overdue tag, weekly posts, evening round-up
+- `src/flex.js`: cards in the dashboard style
+- `src/dates.js`: Thai dates ("ศุกร์หน้า", "20 พ.ย.", ambiguous phrases become questions)
+- `src/rules.js`: commands and update phrases that need no AI
+- `src/ai/`: Gemini / Claude providers, model fallback, usage counter, prompt + JSON schema
+- `src/sheets.js`, `src/team.js`: the Sheet as a database; members and tasks
+- `src/line.js`: replies, counted pushes, @mentions
+
+## Next (MVP 2–3)
+
+- Meeting notes (text, voice, whiteboard photo) → decisions and action items to confirm
+- Research: progress toward 20 interviews and a Google Form summary (inside the Monday post and replies, to save pushes)
+- Private interview notes, receipts → expenses, supplier quotes
+- A LIFF board inside LINE, reading the same Sheet

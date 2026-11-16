@@ -1,0 +1,28 @@
+{
+  "name": "norse-bot",
+  "version": "0.1.0",
+  "description": "NORSE team LINE bot: tasks, reminders and project questions for the team group and each member's 1:1 chat",
+  "main": "src/index.js",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/*.test.js",
+    "check": "for f in src/*.js src/ai/*.js scripts/*.js scripts/*.mjs; do node --check $f || exit 1; done",
+    "set-webhook": "node scripts/set-webhook.js",
+    "setup": "bash scripts/setup.sh",
+    "preview": "node scripts/preview-cards.mjs > cards.html"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
+    "@google/genai": "^2.21.0",
+    "@line/bot-sdk": "^9.5.0",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0"
+  },
+  "license": "MIT"
+}
