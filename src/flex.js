@@ -322,20 +322,120 @@ export function usageMessage({ ai, push, members, linked }) {
   }));
 }
 
+// ---- small cards for outcomes (instead of plain text) ---------------------
+/** Tap = the user "types" this text (free, no AI). In a group it needs @Norse in front. */
+export const say = (label, text) => ({ type: 'message', label: label.slice(0, 20), text });
+
+const RESULT = {
+  done: { icon: '✓', label: 'เสร็จแล้ว', color: C.done, soft: C.doneSoft },
+  postpone: { icon: '📅', label: 'เลื่อนวันส่งแล้ว', color: C.accent, soft: C.accentSoft },
+  start: { icon: '▶', label: 'เริ่มแล้ว', color: C.doing, soft: C.accentSoft },
+  unblock: { icon: '▶', label: 'กลับมาเดินต่อ', color: C.doing, soft: C.accentSoft },
+  blocked: { icon: '🚧', label: 'ติดอยู่', color: C.blocked, soft: C.blockedSoft },
+  already: { icon: '✓', label: 'เสร็จไปแล้ว', color: C.muted, soft: C.panel2 },
+};
+
+function chip(kind) {
+  const k = RESULT[kind];
+  return box('horizontal', [t(`${k.icon}  ${k.label}`, { size: 'xs', weight: 'bold', color: k.color, wrap: false })], {
+    backgroundColor: k.soft, cornerRadius: 'xxl', paddingStart: '12px', paddingEnd: '12px', paddingTop: '4px', paddingBottom: '4px', flex: 0,
+  });
+}
+
+/**
+ * One task after a change: status chip, title, workstream, people, due date, a note,
+ * and buttons for the next step. `headline` replaces the chip text's meaning in the alt text.
+ */
+export function resultMessage({ kind, task, today, note, noteColor, headline, buttons = [] }) {
+  const k = RESULT[kind];
+  const due = dueLabel(task.due, today, kind === 'done' || kind === 'already' ? 'done' : task.status);
+  // alt text = what shows in notifications and chat lists
+  return flex(`${k.icon} ${k.label}: ${task.title}${headline ? ' · ' + headline : ''}`.slice(0, 380), bubble({
+    body: [
+      box('horizontal', [chip(kind), filler()]),
+      headline ? t(headline, { size: 'xs', color: C.muted, margin: 'md' }) : null,
+      t(task.title, { weight: 'bold', size: 'md', margin: headline ? 'xs' : 'md' }),
+      note ? t(note, { size: 'sm', color: noteColor || k.color, margin: 'sm' }) : null,
+      box('horizontal', [
+        streamTag(task.stream),
+        t(due.text, { size: 'xs', color: due.color, gravity: 'center', margin: 'md', flex: 1, wrap: false }),
+        box('horizontal', ownersOf(task).slice(0, 3).map((o) => avatar(o, '22px')), { spacing: 'xs', flex: 0 }),
+      ], { margin: 'lg', alignItems: 'center' }),
+    ],
+    footer: buttons.length ? [pillRow(...buttons.slice(0, 2).map((a, i) => pill(a, i === 0 ? 'primary' : 'secondary')))] : [],
+  }));
+}
+
+/** Group ✓ lines ("✓ Jai · mockup") as one card. */
+export function noticesMessage(text, title = 'อัปเดตจากทีม') {
+  const lines = String(text).split('\n').map((l) => l.trim()).filter(Boolean);
+  return flex(`${title}: ${lines.join(' / ')}`.slice(0, 380), bubble({
+    body: [
+      t(title, { weight: 'bold', size: 'sm', color: C.ink }),
+      ...lines.slice(0, 15).map((l) => {
+        const m = /^✓\s*(.*?)\s*·\s*(.*)$/.exec(l);
+        return box('horizontal', [
+          t('✓', { size: 'sm', weight: 'bold', color: C.done, flex: 0 }),
+          m
+            ? box('vertical', [t(m[2], { size: 'sm', weight: 'bold' }), t(m[1], { size: 'xxs', color: C.muted })], { margin: 'md', flex: 1 })
+            : t(l.replace(/^✓\s*/, ''), { size: 'sm', margin: 'md', flex: 1 }),
+        ], { margin: 'md' });
+      }),
+    ],
+  }));
+}
+
+/**
+ * Hero card for one-off moments (linked, group set, welcome, AI resting, help).
+ *   steps:   [{ text, cmd? }]  (cmd = tappable row that sends a command)
+ *   buttons: actions for pill buttons
+ */
+export function infoMessage({ title, sub, alt, tone = 'hero', lines = [], steps = [], buttons = [] }) {
+  const header = tone === 'hero' ? hero(title, sub) : box('vertical', [
+    t(title, { size: 'md', weight: 'bold', color: tone === 'warn' ? C.warn : C.ink }),
+    sub ? t(sub, { size: 'xs', color: C.muted, margin: 'xs' }) : null,
+  ], { backgroundColor: tone === 'warn' ? C.warnSoft : C.panel, paddingAll: '16px' });
+  const body = [
+    ...lines.map((l) => t(l, { size: 'sm', color: C.ink })),
+    ...steps.map((st, i) => box('horizontal', [
+      box('vertical', [t(String(i + 1), { size: 'xxs', weight: 'bold', align: 'center', color: C.onAccent })], {
+        width: '20px', height: '20px', cornerRadius: 'xxl', backgroundColor: C.accent, justifyContent: 'center', flex: 0,
+      }),
+      t(st.text, { size: 'sm', margin: 'md', flex: 1, color: st.cmd ? C.accent : C.ink, weight: st.cmd ? 'bold' : 'regular' }),
+    ], { margin: 'md', alignItems: 'center', ...(st.cmd ? { action: say(st.text, st.cmd) } : {}) })),
+  ];
+  return flex((alt || `${title}${sub ? ' · ' + sub : ''}`).slice(0, 380), bubble({
+    header,
+    body: body.length ? body : [t(' ')],
+    // buttons: actions; the first is the main (mint) one; two per row
+    footer: buttons.length ? [box('vertical', [0, 2].filter((i) => buttons[i]).map((i) => pillRow(
+      ...buttons.slice(i, i + 2).map((a, j) => pill(a, i + j === 0 ? 'primary' : 'secondary')),
+    )), { spacing: 'sm' })] : [],
+  }));
+}
+
 export function helpMessage(chat, botName) {
-  const lines = chat === 'group'
-    ? [
-      `@${botName} บอนนี่ กับ เจ ทำ mockup กล่อง ส่งศุกร์`,
-      `@${botName} งานทีม`,
-      `@${botName} ใครทำอะไรอยู่ / ถามเรื่องโปรเจกต์`,
-      `@${botName} ตั้งค่า`,
-    ]
-    : [
-      'ฉันคือ <ชื่อเล่น>  (ครั้งแรกครั้งเดียว)',
-      'งานฉัน · วันนี้ทำอะไรดี',
-      'mockup เสร็จแล้ว · ขอเลื่อนเป็นจันทร์',
-      'ติด supplier ยังไม่ตอบ',
-      'งานทีม · ตั้งค่า',
-    ];
-  return textMsg(`พิมพ์แบบนี้ได้เลย\n${lines.map((l) => '• ' + l).join('\n')}`);
+  if (chat === 'group') {
+    return infoMessage({
+      title: `เรียก @${botName} แบบนี้`, sub: 'คุยกันปกติ บอทไม่ตอบ', alt: `วิธีใช้ ${botName} ในกลุ่ม`,
+      steps: [
+        { text: `@${botName} นน กับ เจ ทำ mockup ส่งศุกร์` },
+        { text: `@${botName} งานทีม`, cmd: `@${botName} งานทีม` },
+        { text: `@${botName} ใครทำ supplier อยู่` },
+        { text: `@${botName} ตั้งค่า`, cmd: `@${botName} ตั้งค่า` },
+      ],
+      lines: ['อัปเดตงานตัวเอง (เสร็จ / เลื่อน / ติด) ทำในแชทส่วนตัวกับ Norse'],
+    });
+  }
+  return infoMessage({
+    title: 'ใช้ Norse แบบนี้', sub: 'กดเมนูด้านล่าง หรือพิมพ์ได้เลย', alt: `วิธีใช้ ${botName}`,
+    steps: [
+      { text: 'งานฉัน', cmd: 'งานฉัน' },
+      { text: 'วันนี้ทำอะไรดี', cmd: 'วันนี้ทำอะไรดี' },
+      { text: 'mockup เสร็จแล้ว · ขอเลื่อนเป็นจันทร์' },
+      { text: 'ติด supplier ยังไม่ตอบ' },
+      { text: 'งานใหม่: ทำ deck ส่งพฤหัส' },
+      { text: 'งานทีม', cmd: 'งานทีม' },
+    ],
+  });
 }

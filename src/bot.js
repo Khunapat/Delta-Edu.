@@ -28,6 +28,9 @@ export class Bot {
 
   today() { return this.team.today(); }
 
+  /** Text a button should "type": in a group it needs @Norse in front or the bot ignores it. */
+  cmd(c, text) { return c.chat === 'group' ? `@${this.name} ${text}` : text; }
+
   // ======================================================================
   async handle(event) {
     const src = event.source || {};
@@ -38,8 +41,22 @@ export class Bot {
       chatId: chat === 'group' ? src.groupId : src.userId,
     };
 
-    if (event.type === 'join') return this.reply(c, F.textMsg(`สวัสดี ${this.name} มาแล้ว 👋\nให้ admin ของทีมพิมพ์ "@${this.name} ใช้กลุ่มนี้" เพื่อตั้งเป็นกลุ่มทีม\nแล้วทุกคนทักแชทส่วนตัวกับ ${this.name} พิมพ์ "ฉันคือ <ชื่อเล่น>" ครั้งเดียว`));
-    if (event.type === 'follow') return this.reply(c, F.textMsg(`สวัสดี นี่ ${this.name} ผู้ช่วยทีม NORSE 🌿\nครั้งแรกพิมพ์ "ฉันคือ <ชื่อเล่นในทีม>" เพื่อเชื่อมบัญชีนะ`));
+    if (event.type === 'join') {
+      return this.reply(c, F.infoMessage({
+        title: `สวัสดี ${this.name} มาแล้ว 👋`, sub: 'ผู้ช่วยทีม NORSE',
+        steps: [
+          { text: `admin: ทักแชทส่วนตัวกับ ${this.name} พิมพ์ "ฉันคือ <ชื่อเล่น>"` },
+          { text: `admin: พิมพ์ "@${this.name} ใช้กลุ่มนี้" ในกลุ่มนี้` },
+          { text: `ทุกคน: ทักแชทส่วนตัวกับ ${this.name} พิมพ์ "ฉันคือ <ชื่อเล่น>"` },
+        ],
+      }));
+    }
+    if (event.type === 'follow') {
+      return this.reply(c, F.infoMessage({
+        title: `สวัสดี นี่ ${this.name} 🌿`, sub: 'ผู้ช่วยทีม NORSE',
+        lines: ['ครั้งแรก พิมพ์ "ฉันคือ <ชื่อเล่นในทีม>" เพื่อเชื่อมบัญชี (ใช้ได้เฉพาะคนในทีม)'],
+      }));
+    }
     if (event.type !== 'message' && event.type !== 'postback') return;
 
     if (chat === 'group') {
@@ -59,7 +76,7 @@ export class Bot {
     if (c.chat === 'group' && c.isTeamGroup) {
       // Piggy-back queued ✓ lines on a free reply instead of a paid push.
       const notices = await this.takeNotices();
-      if (notices) list.push(F.textMsg(notices));
+      if (notices) list.push(F.noticesMessage(notices));
     }
     await this.line.reply(c.replyToken, list.slice(0, 5));
   }
@@ -122,7 +139,11 @@ export class Bot {
     await this.db.kvSet('team_group', c.groupId);
     await this.db.log(c.member.nickname, c.groupId, 'register_group');
     c.isTeamGroup = true;
-    return this.reply(c, F.textMsg(`ตั้งกลุ่มนี้เป็นกลุ่มทีมแล้ว ✓\nเรียก @${this.name} เมื่อไหร่ค่อยตอบ คุยกันปกติไม่ต้องห่วง`));
+    return this.reply(c, F.infoMessage({
+      title: 'ตั้งกลุ่มนี้เป็นกลุ่มทีมแล้ว ✓', sub: `เรียก @${this.name} เมื่อไหร่ค่อยตอบ คุยกันปกติไม่ต้องห่วง`,
+      lines: [`ทุกคนทักแชทส่วนตัวกับ ${this.name} แล้วพิมพ์ "ฉันคือ <ชื่อเล่น>" ครั้งเดียว`],
+      buttons: [F.say('งานทีม', `@${this.name} งานทีม`), F.say('วิธีใช้', `@${this.name} วิธีใช้`)],
+    }));
   }
 
   // ======================================================================
@@ -178,7 +199,14 @@ export class Bot {
     if (!r.ok && r.reason === 'unknown') return this.reply(c, F.textMsg(`ไม่เจอ "${name}" ในรายชื่อทีม ลองชื่อเล่นที่ใช้ในทีม หรือให้ admin เพิ่มชื่อในแท็บ Members ก่อนนะ`));
     if (!r.ok && r.reason === 'taken') return this.reply(c, F.textMsg(`ชื่อ ${r.member.nickname} เชื่อมกับ LINE อีกบัญชีไปแล้ว ถ้าเปลี่ยนเครื่อง/บัญชี ให้ admin ล้างช่อง line_user_id ในแท็บ Members ก่อน`));
     await this.db.log(r.member.nickname, 'direct', 'link');
-    return this.reply(c, [F.textMsg(`เชื่อมแล้ว สวัสดี ${r.member.nickname} 👋`), F.helpMessage('direct', this.name)]);
+    return this.reply(c, [
+      F.infoMessage({
+        title: 'เชื่อมแล้ว ✓', sub: `สวัสดี ${r.member.nickname} 👋`, alt: `เชื่อมแล้ว สวัสดี ${r.member.nickname} 👋`,
+        lines: ['ต่อไปนี้งานของคุณจะแจ้งเตือนในแชทนี้ (วันละไม่เกิน 1 ครั้ง)'],
+        buttons: [F.say('งานฉัน', 'งานฉัน'), F.say('วันนี้ทำอะไรดี', 'วันนี้ทำอะไรดี')],
+      }),
+      F.helpMessage('direct', this.name),
+    ]);
   }
 
   // ======================================================================
@@ -249,7 +277,13 @@ export class Bot {
         ctx: { today, sender: c.member.nickname, members, mentioned, streams, tasks, milestones, myTasks },
       });
     } catch (err) {
-      if (err instanceof AiResting || err instanceof AiOff) return this.reply(c, F.textMsg(this.ai.restingText(err)));
+      if (err instanceof AiResting || err instanceof AiOff) {
+        return this.reply(c, F.infoMessage({
+          tone: 'warn', title: err instanceof AiOff ? 'AI ยังไม่เปิด' : 'AI พักอยู่ 😴', lines: [this.ai.restingText(err)],
+          alt: this.ai.restingText(err),
+          buttons: [F.say('งานฉัน', this.cmd(c, 'งานฉัน')), F.say('งานทีม', this.cmd(c, 'งานทีม'))],
+        }));
+      }
       console.error('ai failed', err?.message || err);
       return this.reply(c, F.textMsg('ขอโทษ ตอนนี้อ่านข้อความไม่ออก ลองพิมพ์ใหม่ หรือใช้คำสั่ง งานฉัน / งานทีม ได้นะ'));
     }
@@ -410,10 +444,16 @@ export class Bot {
       case 'done': return this.markDone(c, task);
       case 'start':
         await this.team.updateTask(task.id, { status: 'doing' });
-        return this.reply(c, F.textMsg(`▶ เริ่ม "${task.title}" แล้ว สู้ๆ`));
+        return this.reply(c, F.resultMessage({
+          kind: 'start', task: { ...task, status: 'doing' }, today, note: 'สู้ๆ 💪',
+          buttons: [F.postback('เสร็จแล้ว ✓', `a=td&t=${task.id}`, `${task.title} เสร็จแล้ว`)],
+        }));
       case 'unblock':
         await this.team.updateTask(task.id, { status: 'doing', blocker: '' });
-        return this.reply(c, F.textMsg(`โอเค "${task.title}" กลับมาเดินต่อแล้ว ▶`));
+        return this.reply(c, F.resultMessage({
+          kind: 'unblock', task: { ...task, status: 'doing', blocker: '' }, today,
+          buttons: [F.postback('เสร็จแล้ว ✓', `a=td&t=${task.id}`, `${task.title} เสร็จแล้ว`)],
+        }));
       case 'postpone': {
         const p = parseThaiDate(text, today);
         if (p?.date) return this.postpone(c, task, p.date);
@@ -447,13 +487,19 @@ export class Bot {
   }
 
   async markDone(c, task) {
-    if (task.status === 'done') return this.reply(c, F.textMsg(`"${task.title}" เสร็จไปแล้ว ✓`));
+    if (task.status === 'done') return this.reply(c, F.resultMessage({ kind: 'already', task, today: this.today() }));
     await this.team.updateTask(task.id, { status: 'done' });
     await this.db.log(c.member.nickname, c.chat, 'done', task.title);
     const line = `✓ ${ownersOf(task).join(', ')} · ${task.title}`;
-    if (c.chat === 'group') return this.reply(c, F.textMsg(`${line} เสร็จแล้ว 🎉`));
+    const doneTask = { ...task, status: 'done' };
+    if (c.chat === 'group') {
+      return this.reply(c, F.resultMessage({ kind: 'done', task: doneTask, today: this.today(), headline: `${ownersOf(task).join(', ')} ทำเสร็จแล้ว 🎉` }));
+    }
     await this.queueNotice(line);
-    return this.reply(c, F.textMsg(`เยี่ยม! "${task.title}" เสร็จแล้ว ✓\n(เดี๋ยวกลุ่มจะเห็นเป็น ✓)`));
+    return this.reply(c, F.resultMessage({
+      kind: 'done', task: doneTask, today: this.today(), headline: 'เยี่ยม! 🎉', note: 'เดี๋ยวกลุ่มจะเห็นเป็น ✓', noteColor: '#8C9A98',
+      buttons: [F.say('งานฉัน', 'งานฉัน')],
+    }));
   }
 
   async postpone(c, task, date) {
@@ -461,7 +507,14 @@ export class Bot {
     if (date < today) return this.reply(c, F.textMsg('วันนั้นผ่านไปแล้วนะ เลือกวันใหม่อีกที'));
     await this.team.updateTask(task.id, { due: date, status: task.status === 'blocked' ? 'blocked' : task.status });
     await this.db.log(c.member.nickname, c.chat, 'postpone', `${task.title} -> ${date}`);
-    return this.reply(c, F.textMsg(`เลื่อน "${task.title}" เป็น ${formatDay(date, today)} (${relDays(diffDays(today, date))}) แล้ว`));
+    return this.reply(c, F.resultMessage({
+      kind: 'postpone', task: { ...task, due: date }, today,
+      note: task.due ? `จากเดิม ${formatDay(task.due, today)}` : undefined, noteColor: '#8C9A98',
+      buttons: [
+        F.datePicker('เลื่อนอีก', `a=tp&t=${task.id}`, { initial: date, min: today }),
+        F.say('งานฉัน', this.cmd(c, 'งานฉัน')),
+      ],
+    }));
   }
 
   async askBlocker(c, task) {
@@ -476,11 +529,18 @@ export class Bot {
   async markBlocked(c, task, reason) {
     await this.team.updateTask(task.id, { status: 'blocked', blocker: reason.slice(0, 200) });
     await this.db.log(c.member.nickname, c.chat, 'blocked', `${task.title}: ${reason}`);
-    const line = `🚧 ${ownersOf(task).join(', ')} ติดงาน "${task.title}": ${reason}\nใครช่วยได้บ้าง?`;
-    if (c.chat === 'group') return this.reply(c, F.textMsg(line));
-    await this.reply(c, F.textMsg(`บันทึกแล้ว 🚧 เดี๋ยวบอกในกลุ่มให้ว่าใครช่วยได้`));
+    const today = this.today();
+    const blocked = { ...task, status: 'blocked', blocker: reason };
+    const groupCard = F.resultMessage({
+      kind: 'blocked', task: blocked, today, headline: `${ownersOf(task).join(', ')} ติดงานนี้ · ใครช่วยได้บ้าง? 🙋`, note: reason,
+    });
+    if (c.chat === 'group') return this.reply(c, groupCard);
+    await this.reply(c, F.resultMessage({
+      kind: 'blocked', task: blocked, today, headline: 'บันทึกแล้ว · เดี๋ยวบอกในกลุ่มให้ว่าใครช่วยได้', note: reason,
+      buttons: [F.postback('แก้ได้แล้ว', `a=tu&t=${task.id}`, 'แก้ได้แล้ว')],
+    }));
     const group = await this.db.kvGet('team_group', '');
-    if (group) await this.line.push(group, F.textMsg(line), { essential: true, kind: 'blocked' });
+    if (group) await this.line.push(group, groupCard, { essential: true, kind: 'blocked' });
   }
 
   // ======================================================================

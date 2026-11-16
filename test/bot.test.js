@@ -78,8 +78,13 @@ test('1:1 updates without AI: done, postpone, blocked; group sees ✓ and the bl
     { title: 'mockup กล่อง', owners: ['Bonnie'], due: '2026-11-20' },
     { title: 'สั่งตัวอย่างขวด', owners: ['Bonnie'], due: '2026-11-25' },
   ], 'Jai');
-  assert.match(flat(await w.dm('Bonnie', 'mockup เสร็จแล้ว')), /เสร็จแล้ว ✓/);
-  assert.match(flat(await w.dm('Bonnie', 'ขอเลื่อนสั่งตัวอย่างขวดเป็นศุกร์หน้า')), /เลื่อน .{0,3}สั่งตัวอย่างขวด.{0,3} เป็น ศ\. 27 พ\.ย\./);
+  const done = await w.dm('Bonnie', 'mockup เสร็จแล้ว');
+  assert.equal(done[0].type, 'flex', 'a card, not plain text');
+  assert.match(done[0].altText, /^✓ เสร็จแล้ว: mockup กล่อง/);
+  const moved = await w.dm('Bonnie', 'ขอเลื่อนสั่งตัวอย่างขวดเป็นศุกร์หน้า');
+  assert.match(moved[0].altText, /^📅 เลื่อนวันส่งแล้ว: สั่งตัวอย่างขวด/);
+  assert.match(flat(moved), /ศ\. 27 พ\.ย\./);
+  assert.match(flat(moved), /จากเดิม พ\. 25 พ\.ย\./);
   await w.dm('Bonnie', 'ติด supplier ยังไม่ตอบ'); // only one open task left
   const tasks = await w.team.tasks();
   assert.equal(tasks.find((t) => t.title === 'mockup กล่อง').status, 'done');
@@ -205,4 +210,27 @@ test('admin who has not linked yet is told to link in the 1:1 chat first; "ฉ�
   const before = w.client.replies.length;
   await w.say('Jai', 'ฉันคือ คนที่หิวที่สุดในกลุ่ม', false);
   assert.equal(w.client.replies.length, before, 'linked people chatting "ฉันคือ ..." are ignored');
+});
+
+test('outcomes are cards; buttons in group cards carry @Norse so the bot hears them', async () => {
+  const w = await makeWorld({ link: false });
+  const linked = await w.dm('Jai', 'ฉันคือ เจ');
+  assert.deepEqual(linked.map((m) => m.type), ['flex', 'flex']);
+  assert.match(linked[0].altText, /เชื่อมแล้ว สวัสดี Jai/);
+  const reg = await w.say('Jai', 'ใช้กลุ่มนี้');
+  assert.equal(reg[0].type, 'flex');
+  assert.match(flat(reg), /"text":"@Norse งานทีม"/);
+
+  const [t] = await w.team.createTasks([{ title: 'ถ่ายรูปสินค้า', owners: ['Jai'], due: '2026-11-19' }], 'Jai');
+  await w.tap('Jai', `a=tbr&t=${t.id}&r=${encodeURIComponent('กล้องเสีย')}`);
+  const push = w.client.pushes.at(-1);
+  assert.equal(push.to, 'Cteam');
+  assert.equal(push.messages[0].type, 'flex');
+  assert.match(push.messages[0].altText, /^🚧 ติดอยู่: ถ่ายรูปสินค้า · Jai ติดงานนี้/);
+
+  w.provider.next(new AiResting(new Date('2026-11-17T08:00:00Z')));
+  const resting = await w.say('Jai', 'ใครทำอะไรอยู่บ้างวันนี้นะ');
+  assert.equal(resting[0].type, 'flex');
+  assert.match(flat(resting), /"text":"@Norse งานฉัน"/);
+  assert.match(resting[0].altText, /AI พักอยู่/);
 });

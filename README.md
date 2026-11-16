@@ -26,6 +26,13 @@ look of the NORSE Project Overview dashboard.
 | `mockup เสร็จแล้ว` · `ขอเลื่อนเป็นจันทร์` · `ติด supplier ยังไม่ตอบ` | Updated without AI when it's clear which task you mean; otherwise you get buttons to pick the task. |
 | `วันนี้ทำอะไรดี` | Today / overdue / due soon / blocked. |
 
+**Cards, not text**: lists (งานฉัน, งานทีม, digest, weekly posts, ตั้งค่า) and
+outcomes (linked, group set, done, postponed, started, blocked, the ✓ round-up,
+AI resting, help, welcome) are cards in the dashboard style, each with a button
+for the next step. Buttons in group cards send `@Norse …` so the bot hears them.
+Questions that need a choice (which day, who) stay short text with tap buttons.
+`npm run preview` shows them all.
+
 **Menu bar** (1:1 chat only; LINE doesn't show menus in groups): **งานฉัน ·
 วันนี้ทำอะไรดี · งานทีม / เพิ่มงาน · ตั้งค่า · วิธีใช้**. Each button sends the
 command, so a tap costs no push and no AI. **เพิ่มงาน** opens the keyboard with
@@ -100,7 +107,7 @@ Re-run `./scripts/setup.sh` to deploy new code.
 
 ```bash
 npm install
-npm test          # 35 tests, no network
+npm test          # 36 tests, no network
 npm run preview   # cards.html: rough preview of every card with sample data
 ```
 

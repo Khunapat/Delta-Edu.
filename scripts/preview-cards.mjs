@@ -62,20 +62,20 @@ function message(m) {
 
 const today = '2026-11-16';
 const tasks = [
-  { id: 'a1', title: 'Mockup กล่อง Pocket Press', owner: 'Bonnie, Best', stream: 'Branding', status: 'doing', priority: 'high', due: '2026-11-20' },
+  { id: 'a1', title: 'Mockup กล่อง Pocket Press', owner: 'Bonnie, Non', stream: 'Branding', status: 'doing', priority: 'high', due: '2026-11-20' },
   { id: 'a2', title: 'ขอใบเสนอราคา OEM นครปฐม', owner: 'Jai', stream: 'Supplier', status: 'blocked', priority: 'med', due: '2026-11-18', blocker: 'รอ supplier ตอบ' },
-  { id: 'a3', title: 'สัมภาษณ์นักวิ่ง 5 คน', owner: 'Best', stream: 'Research', status: 'todo', priority: 'med', due: '2026-11-14' },
+  { id: 'a3', title: 'สัมภาษณ์นักวิ่ง 5 คน', owner: 'Non', stream: 'Research', status: 'todo', priority: 'med', due: '2026-11-14' },
   { id: 'a4', title: 'สรุปผล Google Form รอบ 1', owner: 'Jai', stream: 'Research', status: 'done', priority: 'low', due: '2026-11-13' },
 ];
-const members = [{ nickname: 'Jai' }, { nickname: 'Best' }, { nickname: 'Bonnie' }];
-const draft = { id: 'd1', by: 'Jai', tasks: [{ title: 'Mockup กล่อง Pocket Press', owners: ['Bonnie', 'Best'], due: '2026-11-20', stream: 'Branding', priority: 'med' }] };
+const members = [{ nickname: 'Jai' }, { nickname: 'Non' }, { nickname: 'Bonnie' }];
+const draft = { id: 'd1', by: 'Jai', tasks: [{ title: 'Mockup กล่อง Pocket Press', owners: ['Bonnie', 'Non'], due: '2026-11-20', stream: 'Branding', priority: 'med' }] };
 
 const sections = [
-  ['@Norse บอนนี่ กับ Best ทำ mockup กล่อง ส่งศุกร์', [F.draftMessage(draft, today)]],
+  ['@Norse บอนนี่ กับ นน ทำ mockup กล่อง ส่งศุกร์', [F.draftMessage(draft, today)]],
   ['@Norse งานทีม', [F.teamMessage({ members, tasks, today })]],
   ['งานฉัน (1:1)', F.taskListMessage(tasks.filter((x) => x.status !== 'done'), today)],
   ['Morning DM', F.digestMessages({
-    greeting: 'อรุณสวัสดิ์ Best ☀️', today,
+    greeting: 'อรุณสวัสดิ์ Non ☀️', today,
     sections: [{ label: '📌 ส่งวันนี้', tasks: [] }, { label: '⏰ ใกล้ส่ง', tasks: [tasks[0]] }, { label: '🔴 เลยกำหนด', tasks: [tasks[2]], color: '#F07560' }],
     actionable: [],
   })],
@@ -83,6 +83,16 @@ const sections = [
     ai: { label: 'Gemini 3.8-flash > 3.6-flash > 3.5-flash-lite', total: 23, resetText: '15:00 น.', models: [{ model: 'gemini-3.8-flash', used: 20, limit: 20, exhausted: true }, { model: 'gemini-3.5-flash-lite', used: 3, limit: null, exhausted: false }] },
     push: { used: 48, limit: 300 }, members: 3, linked: 3,
   })]],
+  ['1:1 · ฉันคือ เจ', [F.infoMessage({ title: 'เชื่อมแล้ว ✓', sub: 'สวัสดี Jai 👋', lines: ['ต่อไปนี้งานของคุณจะแจ้งเตือนในแชทนี้ (วันละไม่เกิน 1 ครั้ง)'], buttons: [F.say('งานฉัน', 'งานฉัน'), F.say('วันนี้ทำอะไรดี', 'วันนี้ทำอะไรดี')] }), F.helpMessage('direct', 'Norse')]],
+  ['1:1 · mockup เสร็จแล้ว', [F.resultMessage({ kind: 'done', task: { ...tasks[0], status: 'done' }, today, headline: 'เยี่ยม! 🎉', note: 'เดี๋ยวกลุ่มจะเห็นเป็น ✓', noteColor: '#8C9A98', buttons: [F.say('งานฉัน', 'งานฉัน')] })]],
+  ['1:1 · ขอเลื่อนเป็นจันทร์', [F.resultMessage({ kind: 'postpone', task: { ...tasks[2], due: '2026-11-23' }, today, note: 'จากเดิม ส. 14 พ.ย.', noteColor: '#8C9A98', buttons: [F.datePicker('เลื่อนอีก', 'a=tp&t=a3'), F.say('งานฉัน', 'งานฉัน')] })]],
+  ['1:1 · ติด supplier ยังไม่ตอบ   /   กลุ่มเห็น', [
+    F.resultMessage({ kind: 'blocked', task: tasks[1], today, headline: 'บันทึกแล้ว · เดี๋ยวบอกในกลุ่มให้ว่าใครช่วยได้', note: 'รอ supplier ตอบ', buttons: [F.postback('แก้ได้แล้ว', 'a=tu&t=a2')] }),
+    F.resultMessage({ kind: 'blocked', task: tasks[1], today, headline: 'Jai ติดงานนี้ · ใครช่วยได้บ้าง? 🙋', note: 'รอ supplier ตอบ' }),
+  ]],
+  ['กลุ่ม · ✓ ที่ติดไปกับคำตอบ / 18:00', [F.noticesMessage('✓ Bonnie, Non · Mockup กล่อง Pocket Press\n✓ Jai · สรุปผล Google Form รอบ 1', 'วันนี้เสร็จแล้ว 🎉')]],
+  ['กลุ่ม · @Norse ใช้กลุ่มนี้', [F.infoMessage({ title: 'ตั้งกลุ่มนี้เป็นกลุ่มทีมแล้ว ✓', sub: 'เรียก @Norse เมื่อไหร่ค่อยตอบ คุยกันปกติไม่ต้องห่วง', lines: ['ทุกคนทักแชทส่วนตัวกับ Norse แล้วพิมพ์ "ฉันคือ <ชื่อเล่น>" ครั้งเดียว'], buttons: [F.say('งานทีม', '@Norse งานทีม'), F.say('วิธีใช้', '@Norse วิธีใช้')] })]],
+  ['AI โควตาหมด', [F.infoMessage({ tone: 'warn', title: 'AI พักอยู่ 😴', lines: ['AI พักอยู่ (โควตาฟรีวันนี้หมดแล้ว) กลับมา 15:00 น. 😴\nระหว่างนี้ปุ่มกับคำสั่ง งานฉัน / งานทีม / เสร็จแล้ว ยังใช้ได้ปกติ'], buttons: [F.say('งานฉัน', 'งานฉัน'), F.say('งานทีม', 'งานทีม')] })]],
 ];
 
 console.log(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Norse cards</title><style>

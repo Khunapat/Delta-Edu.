@@ -163,7 +163,7 @@ export class Scheduler {
     if (!group) return { skipped: 'no group' };
     const text = await this.bot.takeNotices();
     if (!text) return { sent: false };
-    const ok = await this.line.push(group, F.textMsg(`วันนี้เสร็จแล้ว 🎉\n${text}`), { kind: 'evening', low: true });
+    const ok = await this.line.push(group, F.noticesMessage(text, 'วันนี้เสร็จแล้ว 🎉'), { kind: 'evening', low: true });
     if (!ok) await this.bot.queueNotice(text);
     return { sent: ok };
   }
