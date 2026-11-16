@@ -4,6 +4,7 @@ import { Line } from '../src/line.js';
 import { Ai } from '../src/ai/index.js';
 import { Bot } from '../src/bot.js';
 import { Scheduler } from '../src/scheduler.js';
+import { BoardStore } from '../src/board/store.js';
 import { loadConfig } from '../src/config.js';
 
 export class FakeLineClient {
@@ -20,6 +21,7 @@ export class FakeLineClient {
   async getMessageQuotaConsumption() { if (!this.lineQuota) throw new Error('offline'); return { totalUsage: this.lineQuota.used }; }
   async showLoadingAnimation() {}
   async getProfile() { return { displayName: 'x' }; }
+  async getMessageContent(id) { const buf = this.content?.[id] || Buffer.from('fake'); return (async function* () { yield buf; })(); }
   async getGroupMemberProfile(groupId, userId) {
     if (this.groupMembers && !this.groupMembers.get(groupId)?.has(userId)) throw Object.assign(new Error('Not found'), { status: 404 });
     return { displayName: 'x' };
@@ -31,7 +33,7 @@ export class FakeProvider {
   constructor() { this.models = ['fake-model']; this.label = 'Fake'; this.queue = []; this.calls = []; }
   next(obj) { this.queue.push(obj); return this; }
   async extract({ system, parts, schema }) {
-    this.calls.push({ system, text: parts.map((p) => p.text).join('\n') });
+    this.calls.push({ system, text: parts.map((p) => p.text || '').join('\n'), parts, schema });
     const r = this.queue.shift();
     if (r instanceof Error) throw r;
     if (!r) throw new Error('no scripted AI answer');
@@ -54,10 +56,11 @@ export async function makeWorld({ now = new Date('2026-11-16T02:00:00Z'), link =
   const line = new Line({ client, db, monthlyLimit: 300, timeZone: cfg.timeZone, now: () => new Date(clock) });
   const provider = new FakeProvider();
   const ai = new Ai({ cfg, db, provider });
-  const bot = new Bot({ cfg, db, team, line, ai });
+  const store = new BoardStore({ db, team });
+  const bot = new Bot({ cfg, db, team, line, ai, store });
   const scheduler = new Scheduler({ cfg, db, team, line, bot });
   const w = {
-    cfg, backend, db, team, client, line, provider, ai, bot, scheduler,
+    cfg, backend, db, team, client, line, provider, ai, bot, scheduler, store,
     setNow(d) { clock = new Date(d).getTime(); },
     uid: { Jai: 'Ujai', Best: 'Ubest', Bonnie: 'Ubonnie' },
     group: 'Cteam',

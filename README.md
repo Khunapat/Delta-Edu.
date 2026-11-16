@@ -148,6 +148,22 @@ the claude.ai runtime: same `db`/`user` calls, backed by `/api/board/*`) and swa
 the email wording for LINE. To update the page, replace `board/index.html` and run
 the tests: they fail if a swapped sentence no longer matches.
 
+## Meeting notes
+
+Type **`ประชุม`** (in the group: `@Norse ประชุม`), then send the notes within 30
+minutes as **text**, a **voice note** or a **photo of the whiteboard / notebook**; or
+type it in one go: `บันทึกประชุม: …`. One AI call (Gemini reads Thai/English text,
+audio and images) returns a **meeting card**: summary, ✓ decisions, → action items with
+owners and dates, ? open questions, with **บันทึกลงบอร์ด / ยกเลิก**. Action items also
+come as the usual task cards (unknown names and unclear dates are asked about).
+Saving puts the meeting on the web board's **Meetings & Decisions** page, where Norse
+can answer questions about it later. Nothing is saved without a tap.
+
+Photos and voice notes are only read after `ประชุม`, and only from the person who
+asked (in the group, everyone else's photos stay chat). LINE voice notes (m4a) are
+converted to Ogg/Opus with ffmpeg, which the Docker image installs. If reading takes
+longer than LINE's reply window, the result arrives as one push to the same chat.
+
 ## Research (Google Form)
 
 On the web board's **Research** page, link the Sheet that collects the Form's
@@ -191,7 +207,7 @@ the animated banners from `scripts/banners/banners.html` (both need Playwright).
 
 ```bash
 npm install
-npm test          # 58 tests, no network
+npm test          # 63 tests, no network
 npm run preview   # cards.html: every card (real code, sample data) as LINE lays it out
 ```
 
@@ -208,6 +224,7 @@ Cloud Shell. Re-running with no changes does nothing.
 - `src/scheduler.js`: daily digest, overdue tag, weekly posts, evening round-up
 - `src/flex.js`: cards in the dashboard style; `scripts/cards/`: sample cards + a LINE-like renderer for previews
 - `src/dates.js`: Thai dates ("ศุกร์หน้า", "20 พ.ย.", ambiguous phrases become questions)
+- `src/ai/meeting.js`, `src/media.js`: meeting notes (prompt + schema), images and voice notes for the AI
 - `src/research.js`: Google Form responses → the board's Research page and the Monday line
 - `src/knowledge.js`, `knowledge/norse.md`: what the AI knows about NORSE for questions
 - `src/rules.js`: commands and update phrases that need no AI
@@ -220,7 +237,7 @@ Cloud Shell. Re-running with no changes does nothing.
 
 ## Next (MVP 2–3)
 
-- Meeting notes (text, voice, whiteboard photo) → decisions and action items to confirm
+- ~~Meeting notes (text, voice, whiteboard photo) → decisions and action items to confirm~~ done (see Meeting notes)
 - ~~Research: progress toward 20 interviews and a Google Form summary~~ done (see Research)
 - Private interview notes, receipts → expenses, supplier quotes
 - ~~A LIFF board inside LINE, reading the same Sheet~~ done (see Web board)

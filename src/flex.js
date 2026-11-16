@@ -267,6 +267,54 @@ export function createdMessage(tasks, today, by) {
   }));
 }
 
+// ---- meeting notes (decisions + action items, confirm before saving) ------
+/** m: { id, title, date, attendees[], summary, decisions[], actions[{ title, owners[], due }], questions[] } */
+export function meetingMessage(m, today, { saved = false } = {}) {
+  const sectionRows = (items, mark, color) => items.slice(0, 8).map((x, i) => box('horizontal', [
+    box('vertical', [t(mark, { size: 'xxs', weight: 'bold', align: 'center', color: C.onAccent })], {
+      width: '20px', height: '20px', cornerRadius: 'xxl', backgroundColor: color, justifyContent: 'center', flex: 0,
+    }),
+    t(x, { size: 'sm', margin: 'md', flex: 1 }),
+  ], { margin: i ? 'md' : 'sm', alignItems: 'flex-start' }));
+  const actionRows = m.actions.slice(0, 8).map((a, i) => box('horizontal', [
+    box('vertical', [filler()], { width: '4px', backgroundColor: C.accent, cornerRadius: 'xxl', flex: 0 }),
+    box('vertical', [
+      t(a.title, { size: 'sm', weight: 'bold' }),
+      box('horizontal', [
+        t(a.owners?.length ? a.owners.join(', ') : 'ยังไม่มีคนทำ', { size: 'xxs', color: a.owners?.length ? C.muted : C.blocked, flex: 0, gravity: 'center' }),
+        filler(),
+        a.due ? dueChip(a.due, today) : tag('ไม่มีกำหนด', 'low'),
+      ], { margin: 'xs', alignItems: 'center' }),
+    ], { flex: 1, margin: 'md' }),
+  ], { margin: i ? 'md' : 'sm' }));
+  const head = (label, n, color) => box('horizontal', [
+    t(label, { size: 'sm', weight: 'bold', color, flex: 0 }),
+    box('vertical', [t(String(n), { size: 'xxs', weight: 'bold', color: C.muted, align: 'center' })], {
+      backgroundColor: C.panel2, cornerRadius: 'xxl', paddingStart: '7px', paddingEnd: '7px', paddingTop: '1px', paddingBottom: '1px', margin: 'sm', flex: 0,
+    }),
+  ], { margin: 'xl', alignItems: 'center' });
+  const body = [
+    m.summary ? t(m.summary, { size: 'sm', color: C.muted }) : null,
+    m.decisions.length ? head('✓ ตัดสินใจ', m.decisions.length, C.done) : null,
+    ...sectionRows(m.decisions, '✓', C.done),
+    m.actions.length ? head('→ งานที่ต้องทำ', m.actions.length, C.accent) : null,
+    ...actionRows,
+    m.questions.length ? head('? คำถามค้าง', m.questions.length, C.warn) : null,
+    ...sectionRows(m.questions, '?', C.warn),
+    !m.decisions.length && !m.actions.length && !m.questions.length ? t('ไม่เจอเรื่องที่ตัดสินใจหรืองานที่ต้องทำในโน้ตนี้', { size: 'xs', color: C.muted, margin: 'md' }) : null,
+  ].filter(Boolean);
+  const sub = [m.date ? formatDay(m.date, today) : '', m.attendees.length ? m.attendees.join(', ') : ''].filter(Boolean).join(' · ');
+  return flex(`${saved ? 'บันทึกประชุมแล้ว' : 'สรุปประชุม · รอบันทึก'}: ${m.title}`, bubble({
+    size: 'mega',
+    header: hero({ kicker: saved ? 'NORSE · ประชุม · บันทึกแล้ว ✓' : 'NORSE · ประชุม · รอบันทึก', title: m.title || 'ประชุมทีม', sub }),
+    body,
+    footer: saved ? [] : [
+      pill(postback('บันทึกลงบอร์ด', `a=mok&m=${m.id}`, 'บันทึกประชุม'), 'primary'),
+      pill(postback('ยกเลิก', `a=mx&m=${m.id}`, 'ยกเลิก'), 'ghost'),
+    ],
+  }));
+}
+
 // ---- tasks (like the kanban .tcard) -------------------------------------
 export function taskBubble(task, today, { actions = true, note } = {}) {
   const due = dueLabel(task.due, today, task.status);
@@ -568,6 +616,7 @@ export function helpMessage(chat, botName) {
         { text: `@${botName} งานทีม`, cmd: `@${botName} งานทีม` },
         { text: `@${botName} ใครทำ supplier อยู่` },
         { text: `@${botName} บอร์ด`, cmd: `@${botName} บอร์ด` },
+        { text: `@${botName} ประชุม → ส่งโน้ต / เสียง / รูปไวท์บอร์ด`, cmd: `@${botName} ประชุม` },
       ],
       lines: ['อัปเดตงานตัวเอง (เสร็จ / เลื่อน / ติด) ทำในแชทส่วนตัวกับ Norse'],
     });
@@ -580,6 +629,7 @@ export function helpMessage(chat, botName) {
       { text: 'mockup เสร็จแล้ว · ขอเลื่อนเป็นจันทร์' },
       { text: 'ติด supplier ยังไม่ตอบ' },
       { text: 'งานใหม่: ทำ deck ส่งพฤหัส' },
+      { text: 'ประชุม → ส่งโน้ต / เสียง / รูปไวท์บอร์ด', cmd: 'ประชุม' },
       { text: 'งานทีม', cmd: 'งานทีม' },
     ],
   });

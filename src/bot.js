@@ -7,18 +7,24 @@
 import { understand } from './ai/brain.js';
 import { AiOff, AiResting } from './ai/index.js';
 import { command, detectUpdate, matchTasks } from './rules.js';
-import { addDays, diffDays, formatDay, isDayKey, parseThaiDate, relDays } from './dates.js';
+import { addDays, diffDays, formatDay, isDayKey, normalizeDate, parseThaiDate, relDays } from './dates.js';
 import { newId, ownersOf, byDue, normName } from './team.js';
 import * as F from './flex.js';
 import { mentionText } from './line.js';
+import { readMeeting } from './ai/meeting.js';
+import { forAi, MAX_AUDIO_BYTES } from './media.js';
 
 const DRAFT_TTL_MS = 24 * 3600_000;
 const NEW_TASK = /^งานใหม่\s*[:：]?/;
+// "บันทึกประชุม: …" / "ประชุม: …" / "meeting notes: …" with the notes after it
+const MEETING_INLINE = /^(?:บันทึกประชุม|สรุปประชุม|ประชุม|meeting(?:\s+notes?)?)\s*[:：]\s*([\s\S]+)$/i;
+const MEETING_TTL_MS = 24 * 3600_000;
 const AWAIT_TTL_MS = 30 * 60_000;
 
 export class Bot {
-  constructor({ cfg, db, team, line, ai, knowledge = async () => '' }) {
+  constructor({ cfg, db, team, line, ai, knowledge = async () => '', store = null }) {
     this.cfg = cfg;
+    this.store = store; // web board documents (meetings are saved there)
     this.knowledge = knowledge; // text about NORSE for questions (src/knowledge.js)
     this.db = db;
     this.team = team;
@@ -68,18 +74,29 @@ export class Bot {
     c.member = await this.team.memberByUserId(c.uid);
 
     if (event.type === 'postback') return this.onPostback(c);
-    if (event.message?.type !== 'text') return; // MVP 1: text only
+    const kind = event.message?.type;
+    if (kind === 'image' || kind === 'audio') return this.onMedia(c, kind);
+    if (kind !== 'text') return;
     return chat === 'group' ? this.onGroupText(c) : this.onDirectText(c);
   }
 
   async reply(c, messages) {
-    const list = (Array.isArray(messages) ? messages : [messages]).flat().filter(Boolean);
-    if (c.chat === 'group' && c.isTeamGroup) {
+    const list = (Array.isArray(messages) ? messages : [messages]).flat().filter(Boolean).slice(0, 5);
+    if (c.chat === 'group' && c.isTeamGroup && list.length < 5) {
       // Piggy-back queued ✓ lines on a free reply instead of a paid push.
       const notices = await this.takeNotices();
       if (notices) list.push(F.noticesMessage(notices));
     }
-    await this.line.reply(c.replyToken, list.slice(0, 5));
+    try {
+      await this.line.reply(c.replyToken, list);
+    } catch (err) {
+      // Slow work (a long voice note) can outlive the reply token: send it as one push instead.
+      if (c.slow && Number(err?.status) === 400 && c.chatId) {
+        await this.line.push(c.chatId, list, { kind: 'late_reply' });
+        return;
+      }
+      throw err;
+    }
   }
 
   // ======================================================================
@@ -115,6 +132,8 @@ export class Bot {
     if (!c.member) return this.reply(c, F.textMsg(`ยังไม่รู้จักกันเลย 🙂 ทักแชทส่วนตัวกับ ${this.name} แล้วพิมพ์ "ฉันคือ <ชื่อเล่น>" ก่อนนะ`));
 
     if (cmd) return this.onCommand(c, cmd);
+    const notes = MEETING_INLINE.exec(text);
+    if (notes) return this.processMeeting(c, { text: notes[1] });
 
     const mentioned = [...new Set(Object.values(nickByUid))];
     return this.withAi(c, text, { mentioned });
@@ -163,6 +182,9 @@ export class Bot {
 
     // "งานใหม่: ..." (from the menu bar's เพิ่มงาน button) always means a new task,
     // never an update, even if it contains words like เสร็จ or เลื่อน.
+    const notes = MEETING_INLINE.exec(text.trim());
+    if (notes) return this.processMeeting(c, { text: notes[1] });
+
     const fresh = NEW_TASK.exec(text.trim());
     if (fresh) {
       const rest = text.trim().slice(fresh[0].length).trim();
@@ -232,6 +254,18 @@ export class Bot {
         return this.link(c, cmd.name);
       case 'board':
         return this.reply(c, this.boardCard());
+      case 'meeting':
+        await this.db.kvSet('await:' + c.uid, { type: 'meeting', chat: c.chatId, at: Date.now() });
+        return this.reply(c, F.infoMessage({
+          title: 'ส่งโน้ตประชุมมาได้เลย 📝', sub: 'ภายใน 30 นาที · จากคุณคนเดียว',
+          alt: 'ส่งโน้ตประชุมมาได้เลย',
+          steps: [
+            { text: 'พิมพ์สรุปสั้นๆ ว่าคุยอะไร ใครทำอะไร' },
+            { text: 'หรืออัดเสียง (กดไมค์ค้าง) เล่าสรุปประชุม' },
+            { text: 'หรือถ่ายรูปไวท์บอร์ด / สมุดโน้ต' },
+          ],
+          lines: [`${this.name} จะแยกเป็น เรื่องที่ตัดสินใจ · งานที่ต้องทำ · คำถามค้าง ให้กดยืนยันก่อนบันทึก`],
+        }));
       default:
         return this.reply(c, F.helpMessage(c.chat, this.name));
     }
@@ -324,7 +358,7 @@ export class Bot {
 
   // ======================================================================
   // Drafts: AI suggestion -> card -> someone confirms -> saved
-  async startDraft(c, aiTasks, { text, mentioned, members, streams, clarify }) {
+  async startDraft(c, aiTasks, { text, mentioned, members, streams, clarify, before = [] }) {
     const today = this.today();
     const draft = { id: newId(), chat: c.chatId, by: c.member.nickname, created: Date.now(), tasks: [] };
     const questions = [];
@@ -377,7 +411,7 @@ export class Bot {
         ])));
       }
     }
-    return this.reply(c, msgs);
+    return this.reply(c, [...before, ...msgs]);
   }
 
   ownerPicker(draft, i, members, prompt) {
@@ -546,6 +580,92 @@ export class Bot {
     if (group) await this.line.push(group, groupCard, { essential: true, kind: 'blocked' });
   }
 
+  // ======================================================================
+  // Meeting notes: text, voice note or whiteboard photo -> decisions + action items
+  /** An image or voice note: meeting notes when the sender asked for it ("ประชุม" first). */
+  async onMedia(c, kind) {
+    if (!c.member) return c.chat === 'direct' ? this.reply(c, F.textMsg('ยังไม่รู้จักกัน 🙂 พิมพ์ "ฉันคือ <ชื่อเล่นในทีม>" ก่อนนะ')) : undefined;
+    if (c.chat === 'group' && !c.isTeamGroup) return;
+    const a = await this.peekAwait(c);
+    if (a?.type === 'meeting') {
+      await this.db.kvDel('await:' + c.uid);
+      return this.processMeeting(c, { media: kind });
+    }
+    if (c.chat === 'group') return; // photos and voice in the group are just chat
+    return this.reply(c, F.textMsg(`ถ้าเป็นโน้ตประชุม พิมพ์ "ประชุม" ก่อน แล้วส่ง${kind === 'audio' ? 'เสียง' : 'รูป'}นี้อีกครั้งนะ 📝`, F.quickReply([F.say('ประชุม', 'ประชุม')])));
+  }
+
+  async processMeeting(c, { text = '', media = null }) {
+    if (!this.store) return this.reply(c, F.textMsg('ยังบันทึกประชุมไม่ได้ (บอร์ดยังไม่พร้อม)'));
+    c.slow = true; // reading a voice note can take a while
+    if (c.chat === 'direct') this.line.showLoading(c.uid, 60).catch(() => {});
+    const today = this.today();
+    const members = await this.team.members();
+    let out;
+    try {
+      const parts = [];
+      if (media) {
+        const buf = await this.line.content(c.event.message.id);
+        if (media === 'audio' && buf.length > MAX_AUDIO_BYTES) return this.reply(c, F.textMsg('ไฟล์เสียงยาวเกินไป ลองอัดแยกเป็นช่วงสั้นๆ (ไม่เกิน ~10 นาที) นะ'));
+        parts.push(await forAi(media, buf));
+      }
+      out = await readMeeting(this.ai, { botName: this.name, text, media: parts, ctx: { today, members, sender: c.member.nickname } });
+    } catch (err) {
+      if (err instanceof AiResting || err instanceof AiOff) return this.reply(c, F.infoMessage({ tone: 'warn', title: 'AI พักอยู่ 😴', lines: [this.ai.restingText(err)], alt: this.ai.restingText(err) }));
+      console.error('meeting failed', err?.message || err);
+      return this.reply(c, F.textMsg(`อ่านโน้ตประชุมไม่สำเร็จ ลองส่งใหม่ หรือพิมพ์ "บันทึกประชุม: …" เป็นข้อความได้นะ`));
+    }
+    if (!out.isMeeting) return this.reply(c, F.textMsg('ดูไม่เหมือนโน้ตประชุมนะ ถ้าใช่ ลองพิมพ์สรุปสั้นๆ ว่าคุยอะไร ใครทำอะไร'));
+    const nick = (raw) => {
+      const n = normName(raw);
+      return members.find((x) => normName(x.nickname) === n || x.aliases.some((al) => normName(al) === n))?.nickname || String(raw).trim();
+    };
+    // The meeting already happened: a weekday means the latest one up to today.
+    const said = out.dateText ? (normalizeDate(out.dateText) || parseThaiDate(out.dateText, addDays(today, -6))?.date || '') : '';
+    const m = {
+      id: newId(), chat: c.chatId, by: c.member.nickname, created: Date.now(),
+      title: out.title || 'ประชุมทีม', date: said && said <= today ? said : today,
+      attendees: [...new Set(out.attendees.map(nick))], summary: out.summary,
+      decisions: out.decisions.slice(0, 15), questions: out.questions.slice(0, 10),
+      actions: out.actions.slice(0, 10).map((a) => {
+        const p = parseThaiDate(String(a.due_text || ''), today);
+        const due = p?.date || (a.due_text && isDayKey(a.due_date) && a.due_date >= today ? a.due_date : '');
+        return { title: String(a.title).trim().slice(0, 120), owners: [...new Set((a.owners || []).map(nick))], due };
+      }),
+    };
+    await this.db.kvSet('meeting:' + m.id, m);
+    await this.db.log(c.member.nickname, c.chat, 'meeting_read', `${m.title} (${media || 'text'})`);
+    const card = F.meetingMessage(m, today);
+    if (!out.actions.length) return this.reply(c, card);
+    // Action items become task cards to confirm, with the usual questions about people and dates.
+    return this.startDraft(c, out.actions.slice(0, 5).map((a) => ({ title: a.title, owners: a.owners, due_text: a.due_text, due_date: a.due_date, stream: '', priority: 'med' })), {
+      text: '', mentioned: [], members, streams: await this.team.streams(), clarify: '', before: [card],
+    });
+  }
+
+  async finishMeeting(c, id, save) {
+    const m = id ? await this.db.kvGet('meeting:' + id, null) : null;
+    if (!m || Date.now() - (m.created || 0) > MEETING_TTL_MS) return this.reply(c, F.textMsg('การ์ดประชุมนี้บันทึก/ยกเลิกไปแล้ว หรือหมดอายุ (24 ชม.)'));
+    await this.db.kvDel('meeting:' + id);
+    if (!save) return this.reply(c, F.textMsg('ยกเลิกสรุปประชุมแล้ว'));
+    const stamp = new Date().toISOString();
+    await this.store.write({
+      op: 'set', path: `meetings/${m.id}`, data: {
+        date: m.date, title: m.title, attendees: m.attendees.join(', '),
+        notes: [m.summary, ...(m.questions.length ? ['คำถามค้าง:', ...m.questions.map((q) => '- ' + q)] : [])].filter(Boolean).join('\n'),
+        decisions: m.decisions.join('\n'),
+        actions: m.actions.map((a) => `${a.owners.join(', ') || '?'}: ${a.title}${a.due ? ` (${a.due})` : ''}`).join('\n'),
+        source: 'line', created: stamp, updated: stamp,
+      },
+    }, { by: c.member.nickname });
+    await this.db.log(c.member.nickname, c.chat, 'meeting_saved', m.title);
+    const liffId = this.cfg.board?.liffId;
+    return this.reply(c, [
+      F.meetingMessage(m, this.today(), { saved: true }),
+      liffId ? F.textMsg('ดูในบอร์ดได้ที่หน้า Meetings & Decisions', F.quickReply([{ type: 'uri', label: 'เปิดบอร์ด', uri: `https://liff.line.me/${liffId}` }])) : null,
+    ]);
+  }
+
   /** Card with a button that opens the web board inside LINE (LIFF). */
   boardCard() {
     const liffId = this.cfg.board?.liffId;
@@ -599,6 +719,7 @@ export class Bot {
     await this.db.kvDel('await:' + c.uid);
     const value = String(text).trim();
     if (!a || !value) return;
+    if (a.type === 'meeting') return this.processMeeting(c, { text: value });
     if (a.type === 'blocker') {
       const task = await this.team.task(a.taskId);
       if (!task) return this.reply(c, F.textMsg('ไม่เจองานนั้นแล้ว'));
@@ -622,6 +743,9 @@ export class Bot {
     if (a === 'kbd') return; // menu bar "เพิ่มงาน": it only opens the keyboard
     if (!c.member) return this.reply(c, F.textMsg(`ยังไม่รู้จักกัน ทักแชทส่วนตัวแล้วพิมพ์ "ฉันคือ <ชื่อเล่น>" ก่อนนะ`));
     if (c.chat === 'group' && !c.isTeamGroup) return;
+
+    // ---- meeting card buttons ----
+    if (a === 'mok' || a === 'mx') return this.finishMeeting(c, p.get('m'), a === 'mok');
 
     // ---- draft buttons ----
     if (a?.startsWith('d') && p.get('d')) {

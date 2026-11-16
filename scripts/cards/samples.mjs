@@ -41,6 +41,14 @@ export function samples() {
       ai: { label: 'Gemini 3.8-flash > 3.6-flash > 3.5-flash-lite', total: 23, resetText: '15:00 น.', models: [{ model: 'gemini-3.8-flash', used: 20, limit: 20, exhausted: true }, { model: 'gemini-3.6-flash', used: 3, limit: 20, exhausted: false }, { model: 'gemini-3.5-flash-lite', used: 0, limit: 500, exhausted: false }] },
       push: { used: 48, limit: 300 }, members: 3, linked: 3,
     })] },
+    { id: 'meeting', title: 'Meeting notes (voice note / photo / text)', chat: 'group', you: '🎤 voice note 2:41', messages: [
+      F.meetingMessage({
+        id: 'mt1', title: 'ประชุมเลือกแพ็กเกจ', date: today, attendees: ['Jai', 'Bonnie', 'Non'], summary: 'คุยเรื่องแบบที่จะทำต่อ ราคา และ supplier',
+        decisions: ['เลือก Pocket Press Slim ทำต่อ', 'ตั้งราคาทดลอง 159 บาท'],
+        actions: [{ title: 'ทำ mockup Pocket Press Slim', owners: ['Bonnie'], due: '2026-11-20' }, { title: 'โทรถาม supplier 3 เจ้า', owners: ['Non'], due: '2026-11-17' }, { title: 'สรุปต้นทุนต่อชิ้น', owners: [], due: '' }],
+        questions: ['ต้นทุนต่อชิ้นจริงเท่าไหร่', 'ใช้กลิ่นไหนเป็นตัวหลัก'],
+      }, today),
+    ] },
     { id: 'draft', title: 'New task from the group', chat: 'group', you: '@Norse บอนนี่ กับ นน ทำ mockup กล่อง ส่งศุกร์', messages: [F.draftMessage(draft, today)] },
     { id: 'created', title: 'Confirmed', chat: 'group', messages: [F.createdMessage([{ ...tasks[0], owner: 'Bonnie, Non' }], today, 'Jai')] },
     { id: 'team', title: '@Norse งานทีม', chat: 'group', you: '@Norse งานทีม', messages: [F.teamMessage({ members, tasks, today })] },

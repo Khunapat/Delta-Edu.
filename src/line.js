@@ -18,7 +18,8 @@ const LINE_COUNT_TTL_MS = 10 * 60_000;
 export class Line {
   constructor({ token, db, monthlyLimit = 300, client = null, timeZone = 'Asia/Bangkok', now = () => new Date() }) {
     this.client = client || new messagingApi.MessagingApiClient({ channelAccessToken: token });
-    this.blob = client ? null : new messagingApi.MessagingApiBlobClient({ channelAccessToken: token });
+    // Media downloads (images, voice notes). Tests pass a fake client that does both.
+    this.blob = client || new messagingApi.MessagingApiBlobClient({ channelAccessToken: token });
     this.db = db;
     this.limit = monthlyLimit;
     this.tz = timeZone;

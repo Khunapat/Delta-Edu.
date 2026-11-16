@@ -28,7 +28,7 @@ async function knowledge() {
   known = { at: Date.now(), text: buildKnowledge(docs) };
   return known.text;
 }
-const bot = new Bot({ cfg, db, team, line, ai, knowledge });
+const bot = new Bot({ cfg, db, team, line, ai, knowledge, store });
 const research = new Research({ store });
 const scheduler = new Scheduler({ cfg, db, team, line, bot, research });
 
