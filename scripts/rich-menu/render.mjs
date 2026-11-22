@@ -1,26 +1,25 @@
-// Draw scripts/rich-menu/menu.png from menu.html (only needed when the design changes;
-// the PNG is committed). Needs Playwright with Chromium.
+// Draw the δelta Edu. menu bar, scripts/rich-menu/menu.png and menu-board.png, from menu.html
+// (only needed when the design changes; the PNGs are committed). Needs Playwright with Chromium.
 //   node scripts/rich-menu/render.mjs
-// Offline? Point FONT_DIR at a folder with IBM Plex Sans Thai and Inter .woff2 files
-// (e.g. from the @fontsource packages) and they are used instead of Google Fonts.
+// Offline? Point FONT_DIR at a folder with Nunito .woff2 files (e.g. nunito-latin-900-normal.woff2
+// from the @fontsource/nunito package) and they are used instead of Google Fonts.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { C, slab } from '../brand/slab.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
 let html = readFileSync(join(here, 'menu.html'), 'utf8');
-// The NORSE wordmark (brand/norse-logo.svg) on the hero tile.
-const logo = readFileSync(join(here, '..', '..', 'brand', 'norse-logo.svg'), 'utf8')
-  .replace('<svg ', '<svg style="height:30px;width:auto;display:block;color:rgba(12,23,21,.6)" ');
-html = html.replace('<!--NORSE_LOGO-->', logo);
+// The cream δelta Edu. slab logo (from brand/delta-logo.svg) on the hero tile.
+html = html.replace('<!--SLAB-->', slab({ fill: C.cream, ink: C.dark, title: false }).svg());
 const dir = process.env.FONT_DIR;
 if (dir && existsSync(dir)) {
   const faces = readdirSync(dir).filter((f) => f.endsWith('.woff2')).map((f) => {
-    const family = /plex-sans-thai/i.test(f) ? 'IBM Plex Sans Thai' : /inter/i.test(f) ? 'Inter' : null;
+    const family = /nunito/i.test(f) ? 'Nunito' : null;
     const weight = /-(\d00)-/.exec(f)?.[1];
     if (!family || !weight) return '';
     const data = readFileSync(join(dir, f)).toString('base64');

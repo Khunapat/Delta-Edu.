@@ -1,109 +1,79 @@
 <!doctype html>
-<!-- Norse menu bar, 2500 x 843. Render with: node scripts/rich-menu/render.mjs
-     Grid matches areas() in src/richmenu.js: 3 columns x 2 rows, edge to edge. -->
-<html lang="th">
+<!-- δelta Edu. menu bar, 2500 x 843. Render with: node scripts/rich-menu/render.mjs
+     Grid matches areas() in src/richmenu.js: 3 columns x 2 rows, edge to edge, in the
+     order of its buttons: My tasks | Today | Team / New task | Classes | Help (or Board).
+     render.mjs puts the cream slab logo in the SLAB placeholder and swaps Help for the Board tile
+     in menu-board.png. -->
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&family=Inter:wght@500;700;800&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=block" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0C1112; --panel: #141B1D; --panel2: #1A2326; --line: #232E31;
-    --ink: #E7EFED; --muted: #8C9A98; --accent: #8FD9C6; --accent2: #5FBFA9;
-    --accentSoft: #1C3631; --onAccent: #0C1715; --heroA: #9FE3D1; --heroB: #5FBFA9;
-  }
+  :root { --dark:#0B5C03; --green:#2E7D1E; --light:#C8E88D; --cream:#FDFCF4; --soft:#E8F0E4; --ink:#1F2A1D; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 2500px; height: 843px; overflow: hidden; }
-  /* soft mint glows behind the tiles, like the dashboard's ambient light */
-  body {
-    font-family: 'IBM Plex Sans Thai', 'Inter', sans-serif; color: var(--ink);
-    background:
-      radial-gradient(900px 520px at 12% 0%, rgba(143,217,198,.16), transparent 70%),
-      radial-gradient(900px 600px at 95% 110%, rgba(95,191,169,.12), transparent 70%),
-      var(--bg);
-  }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); width: 2500px; height: 843px; }
-  .cell { padding: 22px; }
+  body { font-family: 'Nunito', 'Helvetica Neue', Arial, sans-serif; color: var(--dark); background: var(--cream); }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); width: 2500px; height: 843px; padding: 10px; }
+  .cell { padding: 14px; }
   .tile {
-    position: relative; height: 100%; border-radius: 52px; overflow: hidden;
-    background: linear-gradient(160deg, #1b2528 0%, #131a1c 60%, #111718 100%);
-    border: 3px solid rgba(143,217,198,.10); display: flex; align-items: center; gap: 46px; padding: 0 64px;
-    box-shadow: inset 0 3px 0 rgba(231,239,237,.05);
-  }
-  /* corner glow on each dark tile */
-  .tile::before {
-    content: ""; position: absolute; right: -120px; top: -140px; width: 420px; height: 420px; border-radius: 50%;
-    background: radial-gradient(closest-side, rgba(143,217,198,.13), transparent); pointer-events: none;
+    position: relative; height: 100%; border-radius: 44px; overflow: hidden;
+    background: var(--soft); border: 4px solid #D6E6CF;
+    display: flex; align-items: center; gap: 48px; padding: 0 60px;
   }
   .icon {
-    position: relative; flex: none; width: 168px; height: 168px; border-radius: 48px;
-    background: linear-gradient(145deg, #23423b, #183029);
-    border: 3px solid rgba(143,217,198,.22); display: grid; place-items: center;
+    position: relative; flex: none; width: 190px; height: 190px; border-radius: 52px;
+    background: var(--dark); display: grid; place-items: center;
   }
-  .icon svg { width: 96px; height: 96px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  .wave { position: absolute; left: 0; right: 0; bottom: 18px; width: 100%; height: 120px; }
-  .th { font-weight: 700; font-size: 92px; line-height: 1.12; letter-spacing: -0.5px; white-space: nowrap; }
-  .en { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 42px; color: var(--muted); margin-top: 10px; letter-spacing: 0.5px; }
-  .th.small { font-size: 78px; }
+  .icon svg { width: 112px; height: 112px; stroke: var(--cream); fill: none; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+  .label { font-weight: 900; font-size: 96px; line-height: 1; letter-spacing: -1px; white-space: nowrap; }
 
-  /* gradient hero tile, like the dashboard's KPI hero */
-  .hero {
-    background: radial-gradient(520px 360px at 92% 0%, rgba(255,255,255,.45), transparent 70%), linear-gradient(135deg, var(--heroA), #7fd3be 55%, var(--heroB));
-    border-color: transparent; box-shadow: none;
-  }
-  .hero::before { display: none; }
-  .hero .th { color: var(--onAccent); }
-  .hero .en { color: rgba(12, 23, 21, .66); }
-  .hero .icon { background: rgba(12, 23, 21, .12); }
-  .hero .icon svg { stroke: var(--onAccent); }
-  .brand {
-    position: absolute; top: 40px; right: 48px; line-height: 0;
-    color: rgba(12, 23, 21, .6);
-  }
+  /* hero tile: dark green, cream type, slab logo in the corner */
+  .hero { background: var(--dark); border-color: var(--dark); color: var(--cream); }
+  .hero .icon { background: var(--light); }
+  .hero .icon svg { stroke: var(--dark); }
+  .brand { position: absolute; bottom: 34px; right: 40px; width: 104px; line-height: 0; }
+  .brand svg { width: 100%; height: auto; display: block; }
 </style>
 </head>
 <body>
 <div class="grid">
-  <!-- งานฉัน -->
+  <!-- My tasks -->
   <div class="cell"><div class="tile hero">
-    <span class="brand"><!--NORSE_LOGO--></span>
-    <svg class="wave" viewBox="0 0 800 120" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0 70 C70 45 130 95 200 70 S330 45 400 70 S530 95 600 70 S730 45 800 70" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="3" stroke-linecap="round"/>
-      <path d="M0 95 C70 82 130 108 200 95 S330 82 400 95 S530 108 600 95 S730 82 800 95" fill="none" stroke="rgba(12,23,21,.16)" stroke-width="2.5" stroke-linecap="round"/>
-    </svg>
-    <div class="icon"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11M3.5 18l1.5 1.5L7.5 17"/></svg></div>
-    <div><div class="th">งานฉัน</div><div class="en">My tasks</div></div>
+    <span class="brand"><!--SLAB--></span>
+    <div class="icon"><svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.6 1.6L8 4.8M3.5 12l1.6 1.6L8 10.8M3.5 18l1.6 1.6L8 16.8"/></svg></div>
+    <div class="label">My tasks</div>
   </div></div>
-  <!-- วันนี้ทำอะไรดี -->
+  <!-- Today -->
   <div class="cell"><div class="tile">
-    <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></div>
-    <div><div class="th small">วันนี้ทำอะไรดี</div><div class="en">Today</div></div>
+    <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M2.5 12h2M19.5 12h2M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></div>
+    <div class="label">Today</div>
   </div></div>
-  <!-- งานทีม -->
+  <!-- Team -->
   <div class="cell"><div class="tile">
     <div class="icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M16.5 14.2c2.6.3 4.5 2.6 4.5 5.3"/></svg></div>
-    <div><div class="th">งานทีม</div><div class="en">Team</div></div>
+    <div class="label">Team</div>
   </div></div>
-  <!-- เพิ่มงาน -->
+  <!-- New task -->
   <div class="cell"><div class="tile">
     <div class="icon"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M12 8v8M8 12h8"/></svg></div>
-    <div><div class="th">เพิ่มงาน</div><div class="en">New task</div></div>
+    <div class="label">New task</div>
   </div></div>
-  <!-- ตั้งค่า -->
+  <!-- Classes -->
   <div class="cell"><div class="tile">
-    <div class="icon"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
-    <div><div class="th">ตั้งค่า</div><div class="en">AI &amp; pushes</div></div>
+    <div class="icon"><svg viewBox="0 0 24 24"><path d="M2.5 9L12 4.5 21.5 9 12 13.5z"/><path d="M6.5 11v4.5c0 1.6 2.5 3 5.5 3s5.5-1.4 5.5-3V11"/><path d="M21.5 9v5"/></svg></div>
+    <div class="label">Classes</div>
   </div></div>
-  <!-- วิธีใช้ (menu.png) / แดชบอร์ด (menu-board.png, when the page is opened with #board) -->
+  <!-- Help (menu.png) / Board (menu-board.png) -->
   <div class="cell help-tile"><div class="tile">
     <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8"/><path d="M12 17.2h.01"/></svg></div>
-    <div><div class="th">วิธีใช้</div><div class="en">Help</div></div>
+    <div class="label">Help</div>
   </div></div>
 </div>
 <template id="board-tile">
   <div class="tile">
     <div class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="9" rx="2"/><rect x="13.5" y="3" width="7.5" height="5" rx="2"/><rect x="13.5" y="11" width="7.5" height="10" rx="2"/><rect x="3" y="15" width="7.5" height="6" rx="2"/></svg></div>
-    <div><div class="th">แดชบอร์ด</div><div class="en">Dashboard ↗</div></div>
+    <div class="label">Board</div>
   </div>
 </template>
 <script>

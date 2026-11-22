@@ -1,126 +1,159 @@
 <!doctype html>
-<!-- Animated card banners (800 x 300, loop 3 s), in the dashboard's dark/mint style.
-     Open with #morning, #done, #weekly or #welcome. scripts/banners/render.mjs captures
-     each one frame by frame into brand/banner-<name>.png (animated PNG, LINE limit 300 KB).
-     Every animation's period divides 3 s so the loop is seamless. -->
+<!-- δelta Edu. animated card banners (800 x 300, loop 3 s), in the brand's greens and cream.
+     Open with #morning, #done, #weekly or #welcome. scripts/banners/render.mjs fills in the
+     slab logo (<!--SLAB-->, <!--SLAB_DARK-->) and the δ (<!--DELTA-->) from brand/delta-logo.svg,
+     then captures each scene frame by frame into brand/banner-<name>.png (animated PNG,
+     LINE limit 300 KB). Every animation's period divides 3 s so the loop is seamless.
+     Flat colours on purpose: they keep the APNGs small. English only. -->
 <html>
 <head>
 <meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=block" rel="stylesheet">
 <style>
-  :root { --bg:#0c1112; --panel:#141b1d; --ink:#0c1715; --accent:#8fd9c6; --accent2:#5fbfa9; --heroA:#9fe3d1; --heroB:#5fbfa9;
-    --s2:#ac97ee; --s3:#efa064; --s4:#78d18f; --s5:#ea86b8; --s6:#8eaee6; --warn:#e8b14a; }
+  :root { --dark:#0B5C03; --green:#2E7D1E; --light:#C8E88D; --cream:#FDFCF4; --soft:#E8F0E4; --gold:#D4A017; --ink:#1F2A1D; }
   * { margin:0; box-sizing:border-box }
-  html, body { width:800px; height:300px; overflow:hidden; background:var(--bg) }
+  html, body { width:800px; height:300px; overflow:hidden; background:var(--dark); font-family:'Nunito','Helvetica Neue',Arial,sans-serif }
   .scene { position:absolute; inset:0; overflow:hidden; display:none }
   .on { display:block }
-  svg { position:absolute; inset:0; width:100%; height:100% }
-  .mint { background: radial-gradient(120% 140% at 85% 0%, #c6f3e6 0%, transparent 55%), linear-gradient(135deg, var(--heroA), var(--heroB)) }
-  .dark { background: radial-gradient(70% 120% at 50% 50%, rgba(143,217,198,.22) 0%, transparent 70%), var(--panel) }
-  .wm { position:absolute; top:26px; left:30px; width:118px; color:rgba(12,23,21,.55) }
-  .wm.light { color:rgba(231,239,237,.55) }
-  .wm svg { position:static; width:100%; height:auto }
+  .scene > svg { position:absolute; inset:0; width:100%; height:100% }
+  .bg-dark { background:var(--dark) }
+  .bg-soft { background:var(--soft) }
+  .mark { position:absolute; top:24px; left:28px; width:84px; line-height:0 }
+  .mark svg { width:100%; height:auto; display:block }
 
-  /* flowing breath lines: each path is drawn over 2 periods and slides one period per loop */
-  @keyframes slide1 { to { transform: translateX(-400px) } }
-  @keyframes slide2 { to { transform: translateX(-800px) } }
-  .flow1 { animation: slide1 3s linear infinite }
-  .flow2 { animation: slide2 3s linear infinite }
-  @keyframes glow { 0%,100% { opacity:.35; transform: scale(1) } 50% { opacity:.6; transform: scale(1.1) } }
-  .sun { transform-box: fill-box; transform-origin: center; animation: glow 3s ease-in-out infinite }
-  @keyframes rise { 0% { transform: translateY(40px); opacity:0 } 20% { opacity:.9 } 100% { transform: translateY(-260px); opacity:0 } }
-  .p { animation: rise 3s linear infinite }
+  /* morning: the sun (with a δ) breathes up over the hills, rays turn slowly */
+  @keyframes rise { 0%,100% { transform:translateY(30px) } 50% { transform:translateY(0) } }
+  .sun { animation:rise 3s ease-in-out infinite }
+  @keyframes spin { to { transform:rotate(30deg) } }
+  .rays { transform-box:view-box; transform-origin:560px 176px; animation:spin 3s linear infinite }
+  @keyframes drift { 0%,100% { transform:translateX(0) } 50% { transform:translateX(-24px) } }
+  .cloud { animation:drift 3s ease-in-out infinite }
 
-  /* done: ripples + check */
-  @keyframes ripple { 0% { transform: scale(.4); opacity:.9 } 100% { transform: scale(2.6); opacity:0 } }
-  .rip { transform-box: fill-box; transform-origin: center; animation: ripple 3s ease-out infinite }
-  @keyframes breathe { 0%,100% { transform: scale(.94) } 50% { transform: scale(1.04) } }
-  .badge { transform-box: fill-box; transform-origin: center; animation: breathe 1.5s ease-in-out infinite }
-  @keyframes twinkle { 0%,100% { opacity:0; transform: scale(.3) } 30%,60% { opacity:1; transform: scale(1) } }
-  .tw { transform-box: fill-box; transform-origin: center; animation: twinkle 1.5s ease-in-out infinite }
+  /* done: a check badge pops, confetti bursts out from it */
+  @keyframes pop { 0% { transform:scale(.9) } 12% { transform:scale(1.08) } 24%,100% { transform:scale(1) } }
+  .badge { transform-box:fill-box; transform-origin:center; animation:pop 1.5s ease-out infinite }
+  @keyframes ring { 0% { transform:scale(.6); opacity:.9 } 100% { transform:scale(2.2); opacity:0 } }
+  .ring { transform-box:fill-box; transform-origin:center; animation:ring 1.5s ease-out infinite }
+  @keyframes burst { 0% { transform:translate(0,0) rotate(0); opacity:0 } 8% { opacity:1 }
+    80% { opacity:1 } 100% { transform:translate(var(--dx),var(--dy)) rotate(var(--r)); opacity:0 } }
+  .bit { position:absolute; left:400px; top:150px; animation:burst 1.5s cubic-bezier(.15,.7,.35,1) infinite }
 
-  /* weekly: dots light up along the week */
-  @keyframes lit { 0%,10% { fill:#2a3638 } 20%,85% { fill:var(--accent) } 100% { fill:#2a3638 } }
-  .day { animation: lit 3s linear infinite }
+  /* weekly: the days of the week fill in one after another */
+  @keyframes bar { 0% { transform:scaleX(0) } 80%,92% { transform:scaleX(1) } 100% { transform:scaleX(0) } }
+  .bar { transform-box:fill-box; transform-origin:left center; animation:bar 3s cubic-bezier(.4,0,.2,1) infinite }
 
-  /* welcome: inhale / exhale */
-  @keyframes inhale { 0%,100% { transform: scale(.82); opacity:.55 } 50% { transform: scale(1.06); opacity:.95 } }
-  .lung { transform-box: fill-box; transform-origin: center; animation: inhale 3s ease-in-out infinite }
+  /* welcome: the slab logo slides in, then "Welcome" */
+  @keyframes slidein { 0% { transform:translateX(-260px); opacity:0 } 22% { transform:translateX(0); opacity:1 }
+    90% { transform:translateX(0); opacity:1 } 100% { transform:translateX(0); opacity:0 } }
+  .slide { animation:slidein 3s cubic-bezier(.2,.8,.2,1) infinite }
+  @keyframes words { 0%,18% { transform:translateY(16px); opacity:0 } 34% { transform:translateY(0); opacity:1 }
+    90% { opacity:1 } 100% { opacity:0 } }
+  .words { animation:words 3s ease-out infinite }
+  @keyframes float { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-10px) } }
+  .float { animation:float 3s ease-in-out infinite }
 </style>
 </head>
 <body>
 
-<!-- MORNING: sunrise glow + flowing breath lines on mint -->
-<div class="scene mint" id="morning">
+<!-- MORNING: sunrise over green hills, δ on the sun -->
+<div class="scene bg-dark" id="morning">
   <svg viewBox="0 0 800 300">
-    <circle class="sun" cx="640" cy="70" r="70" fill="#ffffff" opacity=".7"/>
-    <g class="flow1"><path d="M0 190 C100 160 100 220 200 190 S300 160 400 190 S500 220 600 190 S700 160 800 190 S900 220 1000 190 S1100 160 1200 190" fill="none" stroke="rgba(12,23,21,.28)" stroke-width="3" stroke-linecap="round"/></g>
-    <g class="flow2"><path d="M0 225 C100 255 100 195 200 225 S300 255 400 225 S500 195 600 225 S700 255 800 225 S900 195 1000 225 S1100 255 1200 225 S1300 195 1400 225 S1500 255 1600 225" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="4" stroke-linecap="round"/></g>
-    <g class="flow1"><path d="M0 255 C100 240 100 270 200 255 S300 240 400 255 S500 270 600 255 S700 240 800 255 S900 270 1000 255 S1100 240 1200 255" fill="none" stroke="rgba(12,23,21,.14)" stroke-width="2" stroke-linecap="round"/></g>
-    <g fill="#ffffff">
-      <circle class="p" cx="120" cy="300" r="4" style="animation-delay:-.2s"/>
-      <circle class="p" cx="260" cy="300" r="3" style="animation-delay:-1.4s"/>
-      <circle class="p" cx="410" cy="300" r="5" style="animation-delay:-2.3s"/>
-      <circle class="p" cx="520" cy="300" r="3" style="animation-delay:-.9s"/>
-      <circle class="p" cx="720" cy="300" r="4" style="animation-delay:-1.9s"/>
+    <g class="cloud" fill="rgba(253,252,244,.14)">
+      <rect x="210" y="76" width="120" height="16" rx="8"/><rect x="240" y="60" width="70" height="16" rx="8"/>
+      <rect x="360" y="118" width="80" height="12" rx="6"/>
     </g>
+    <g class="sun">
+      <g class="rays" id="rays" fill="rgba(200,232,141,.09)"></g>
+      <circle cx="560" cy="176" r="112" fill="rgba(200,232,141,.14)"/>
+      <circle cx="560" cy="176" r="82" fill="var(--light)"/>
+      <g transform="translate(560 172) scale(.1) translate(-298 -372)"><!--DELTA--></g>
+    </g>
+    <path d="M0 236 C140 200 260 214 400 232 S660 214 800 222 V300 H0Z" fill="var(--green)"/>
+    <path d="M0 262 C160 244 300 250 420 262 S650 276 800 258 V300 H0Z" fill="#1E6A12"/>
   </svg>
-  <div class="wm"><!--LOGO--></div>
+  <div class="mark"><!--SLAB--></div>
 </div>
 
-<!-- DONE: ripples around a check badge, sparkles in workstream colours -->
-<div class="scene dark" id="done">
+<!-- DONE: check badge with a confetti burst on soft green -->
+<div class="scene bg-soft" id="done">
   <svg viewBox="0 0 800 300">
-    <circle class="rip" cx="400" cy="150" r="60" fill="none" stroke="var(--accent)" stroke-width="3"/>
-    <circle class="rip" cx="400" cy="150" r="60" fill="none" stroke="var(--accent)" stroke-width="3" style="animation-delay:-1s"/>
-    <circle class="rip" cx="400" cy="150" r="60" fill="none" stroke="var(--accent)" stroke-width="3" style="animation-delay:-2s"/>
+    <circle class="ring" cx="400" cy="150" r="62" fill="none" stroke="var(--green)" stroke-width="4"/>
+    <circle class="ring" cx="400" cy="150" r="62" fill="none" stroke="var(--light)" stroke-width="6" style="animation-delay:-.75s"/>
     <g class="badge">
-      <circle cx="400" cy="150" r="58" fill="url(#g)"/>
-      <path d="M372 152 L393 172 L430 132" fill="none" stroke="#0c1715" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
-    </g>
-    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9fe3d1"/><stop offset="1" stop-color="#5fbfa9"/></linearGradient></defs>
-    <g>
-      <path class="tw" d="M200 80 l6 14 14 6 -14 6 -6 14 -6 -14 -14 -6 14 -6z" fill="var(--warn)"/>
-      <path class="tw" d="M610 70 l5 11 11 5 -11 5 -5 11 -5 -11 -11 -5 11 -5z" fill="var(--s5)" style="animation-delay:-.5s"/>
-      <path class="tw" d="M560 230 l6 13 13 6 -13 6 -6 13 -6 -13 -13 -6 13 -6z" fill="var(--s2)" style="animation-delay:-1s"/>
-      <path class="tw" d="M240 220 l5 11 11 5 -11 5 -5 11 -5 -11 -11 -5 11 -5z" fill="var(--s4)" style="animation-delay:-.75s"/>
-      <circle class="tw" cx="150" cy="160" r="5" fill="var(--s6)" style="animation-delay:-.25s"/>
-      <circle class="tw" cx="660" cy="160" r="5" fill="var(--s3)" style="animation-delay:-1.25s"/>
+      <circle cx="400" cy="150" r="60" fill="var(--dark)"/>
+      <path d="M371 152 L392 173 L430 131" fill="none" stroke="var(--cream)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
   </svg>
-  <div class="wm light"><!--LOGO--></div>
+  <div id="confetti"></div>
+  <div class="mark"><!--SLAB_DARK--></div>
 </div>
 
-<!-- WEEKLY: a week of dots lighting up over calm breath lines -->
-<div class="scene dark" id="weekly">
-  <svg viewBox="0 0 800 300">
-    <g class="flow1"><path d="M0 210 C100 185 100 235 200 210 S300 185 400 210 S500 235 600 210 S700 185 800 210 S900 235 1000 210 S1100 185 1200 210" fill="none" stroke="rgba(143,217,198,.35)" stroke-width="3" stroke-linecap="round"/></g>
-    <g class="flow2"><path d="M0 240 C100 265 100 215 200 240 S300 265 400 240 S500 215 600 240 S700 265 800 240 S900 215 1000 240 S1100 265 1200 240 S1300 215 1400 240 S1500 265 1600 240" fill="none" stroke="rgba(143,217,198,.18)" stroke-width="2" stroke-linecap="round"/></g>
-    <line x1="190" y1="120" x2="610" y2="120" stroke="#2a3638" stroke-width="4" stroke-linecap="round"/>
-    <g>
-      <circle class="day" cx="190" cy="120" r="14" fill="#2a3638" style="animation-delay:-3.0s"/>
-      <circle class="day" cx="260" cy="120" r="14" fill="#2a3638" style="animation-delay:-2.75s"/>
-      <circle class="day" cx="330" cy="120" r="14" fill="#2a3638" style="animation-delay:-2.5s"/>
-      <circle class="day" cx="400" cy="120" r="14" fill="#2a3638" style="animation-delay:-2.25s"/>
-      <circle class="day" cx="470" cy="120" r="14" fill="#2a3638" style="animation-delay:-2.0s"/>
-      <circle cx="540" cy="120" r="10" fill="#2a3638"/>
-      <circle cx="610" cy="120" r="10" fill="#2a3638"/>
-    </g>
+<!-- WEEKLY: a calendar strip whose days fill in -->
+<div class="scene bg-dark" id="weekly">
+  <svg viewBox="0 0 800 300" id="week">
+    <rect x="148" y="236" width="504" height="10" rx="5" fill="rgba(253,252,244,.1)"/>
+    <rect class="bar" x="148" y="236" width="504" height="10" rx="5" fill="var(--light)"/>
   </svg>
-  <div class="wm light"><!--LOGO--></div>
+  <div class="mark"><!--SLAB--></div>
 </div>
 
-<!-- WELCOME: inhale / exhale rings on mint -->
-<div class="scene mint" id="welcome">
+<!-- WELCOME: the slab logo slides in, "Welcome" follows -->
+<div class="scene bg-dark" id="welcome">
   <svg viewBox="0 0 800 300">
-    <g class="lung"><circle cx="400" cy="150" r="118" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="3"/></g>
-    <g class="lung" style="animation-delay:-.4s"><circle cx="400" cy="150" r="88" fill="rgba(255,255,255,.28)"/></g>
-    <g class="lung" style="animation-delay:-.8s"><circle cx="400" cy="150" r="56" fill="rgba(255,255,255,.55)"/></g>
-    <g class="flow1"><path d="M0 268 C100 248 100 288 200 268 S300 248 400 268 S500 288 600 268 S700 248 800 268 S900 288 1000 268 S1100 248 1200 268" fill="none" stroke="rgba(12,23,21,.2)" stroke-width="3" stroke-linecap="round"/></g>
+    <g class="float" fill="none" stroke="rgba(200,232,141,.22)" stroke-width="3">
+      <polygon points="690,22 744,22 744,60 728,76 674,76 674,38"/>
+      <polygon points="80,210 116,210 116,236 106,246 70,246 70,220"/>
+    </g>
+    <g class="float" style="animation-delay:-1.5s" fill="rgba(253,252,244,.10)">
+      <polygon points="740,236 776,236 776,262 766,272 730,272 730,246"/>
+      <polygon points="40,40 64,40 64,58 58,64 34,64 34,46"/>
+    </g>
   </svg>
-  <div class="wm" style="left:50%;top:50%;width:150px;transform:translate(-50%,-50%);color:rgba(12,23,21,.8)"><!--LOGO--></div>
+  <div class="slide" style="position:absolute;left:140px;top:62px;width:240px;line-height:0"><!--SLAB--></div>
+  <div class="words" style="position:absolute;left:412px;top:96px;color:var(--cream)">
+    <div style="font-weight:900;font-size:68px;line-height:1">Welcome</div>
+    <div style="font-weight:800;font-size:22px;color:var(--light);margin-top:12px">Small things create big change.</div>
+  </div>
 </div>
 
 <script>
+  // morning: twelve rays 30° apart, so turning 30° per loop is seamless
+  const rays = document.getElementById('rays');
+  for (let i = 0; i < 12; i++) {
+    const a = (i * 30 * Math.PI) / 180; const b = 0.13; const R = 420;
+    const p = [[560, 176], [560 + R * Math.cos(a - b), 176 + R * Math.sin(a - b)], [560 + R * Math.cos(a + b), 176 + R * Math.sin(a + b)]];
+    rays.insertAdjacentHTML('beforeend', `<path d="M${p.map((q) => q.map(Math.round).join(' ')).join(' L')}Z"/>`);
+  }
+  // confetti: bits fly out of the badge in a ring, half of them half a loop later
+  const cols = ['#0B5C03', '#2E7D1E', '#C8E88D', '#D4A017', '#2E7D1E', '#C8E88D'];
+  const box = document.getElementById('confetti');
+  for (let i = 0; i < 30; i++) {
+    const a = (i / 30) * Math.PI * 2 + (i % 2) * 0.12; const d = 150 + (i * 53) % 120;
+    const el = document.createElement('div'); el.className = 'bit';
+    const w = i % 3 === 0 ? 12 : 18; const h = i % 3 === 0 ? 12 : 8;
+    Object.assign(el.style, { width: w + 'px', height: h + 'px', marginLeft: -w / 2 + 'px', marginTop: -h / 2 + 'px',
+      background: cols[i % cols.length], borderRadius: i % 3 === 0 ? '50%' : '2px', animationDelay: (i % 2 ? -0.75 : 0) + 's' });
+    el.style.setProperty('--dx', Math.round(Math.cos(a) * d * 1.6) + 'px');
+    el.style.setProperty('--dy', Math.round(Math.sin(a) * d * 0.8) + 'px');
+    el.style.setProperty('--r', ((i * 97) % 360) + 'deg');
+    box.appendChild(el);
+  }
+  // week strip: seven day tiles, Mon..Fri fill and get a tick in turn; Sat/Sun stay calm
+  const week = document.getElementById('week'); const NS = 'http://www.w3.org/2000/svg';
+  'MTWTFSS'.split('').forEach((d, i) => {
+    const g = document.createElementNS(NS, 'g'); const x = 148 + i * 74;
+    g.innerHTML = `<rect x="${x}" y="96" width="60" height="112" rx="14" fill="rgba(253,252,244,.08)" stroke="rgba(253,252,244,.18)" stroke-width="2"/>`
+      + `<text x="${x + 30}" y="134" text-anchor="middle" font-size="22" font-weight="900" fill="#FDFCF4" opacity=".75">${d}</text>`
+      + (i < 5 ? `<path d="M${x + 18} 170 l9 9 16 -18" fill="none" stroke="#0B5C03" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0"/>` : '');
+    week.appendChild(g);
+    if (i < 5) {
+      const on = 0.1 + i * 0.14; // fraction of the loop when this day fills
+      const kf = [{ offset: 0, opacity: 0 }, { offset: on, opacity: 0 }, { offset: on + 0.04, opacity: 1 }, { offset: 0.92, opacity: 1 }, { offset: 1, opacity: 0 }];
+      g.querySelector('rect').animate([{ offset: 0, fill: 'rgba(253,252,244,.08)' }, { offset: on, fill: 'rgba(253,252,244,.08)' }, { offset: on + 0.04, fill: '#C8E88D' }, { offset: 0.92, fill: '#C8E88D' }, { offset: 1, fill: 'rgba(253,252,244,.08)' }], { duration: 3000, iterations: Infinity });
+      g.querySelector('path').animate(kf, { duration: 3000, iterations: Infinity });
+      g.querySelector('text').animate([{ offset: 0, fill: '#FDFCF4' }, { offset: on, fill: '#FDFCF4' }, { offset: on + 0.04, fill: '#0B5C03' }, { offset: 0.92, fill: '#0B5C03' }, { offset: 1, fill: '#FDFCF4' }], { duration: 3000, iterations: Infinity });
+    }
+  });
   const show = () => { const id = location.hash.slice(1) || 'morning'; document.querySelectorAll('.scene').forEach((s) => s.classList.toggle('on', s.id === id)); };
   addEventListener('hashchange', show); show();
 </script>

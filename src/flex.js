@@ -1,7 +1,8 @@
-// LINE Flex cards in the style of the NORSE Project Overview dashboard (dark theme):
-// dark panels, mint gradient hero tiles, KPI tiles with bars, stacked status bars,
-// pill tags and pill buttons, workstream colours, overlapping initials avatars, and
-// animated banners (APNG, brand/banner-*.png) for the big moments.
+// LINE Flex cards in the δelta Edu. look (from the institution's slide deck):
+// cream panels, deep-green gradient hero tiles with cream text, KPI tiles with bars,
+// stacked status bars, pill tags and pill buttons, brand tags (Uni green, LITE gold,
+// Both blue), overlapping initials avatars, and animated banners (APNG,
+// brand/banner-*.png) for the big moments. All text is English.
 // Every button is a postback, a date picker or a typed command: tapping never costs an AI call.
 //
 // LINE renders these with the phone's own font; no shadows or CSS animation. Motion
@@ -10,29 +11,33 @@
 // simply have no banner.
 
 import { formatDay, relDays, diffDays } from './dates.js';
-import { ownersOf, STATUS_TH } from './team.js';
+import { ownersOf, STATUS_LABEL } from './team.js';
 
-// Dashboard tokens (data-ui="dark").
+// δelta Edu. tokens: deep green #0B5C03, light green #C8E88D, cream #FDFCF4, gold #D4A017 (LITE).
 export const C = {
-  bg: '#0C1112', panel: '#141B1D', panel2: '#1A2326', panel3: '#212C2F', ink: '#E7EFED', muted: '#8C9A98', faint: '#5B6A68', line: '#232E31',
-  accent: '#8FD9C6', accent2: '#5FBFA9', accentSoft: '#1C3631', onAccent: '#0C1715',
-  heroA: '#9FE3D1', heroMid: '#7FD3BE', heroB: '#5FBFA9',
-  todo: '#5B6A68', doing: '#8FD9C6', blocked: '#F07560', done: '#78D18F', warn: '#E8B14A',
-  blockedSoft: '#3A201B', warnSoft: '#382D15', doneSoft: '#1A3322',
-  track: '#0C171526', // dark see-through track on the mint hero
-  streams: ['#8FD9C6', '#AC97EE', '#EFA064', '#78D18F', '#EA86B8', '#8EAEE6'],
+  bg: '#FDFCF4', panel: '#FFFFFF', panel2: '#F3F7EF', panel3: '#E2EBDC', ink: '#1F2A1D', muted: '#5F6B5B', faint: '#8E9A8B', line: '#DCE6D6',
+  accent: '#0B5C03', accent2: '#2E7D1E', accentSoft: '#E3F0DA', onAccent: '#FDFCF4', lime: '#C8E88D',
+  heroA: '#0B5C03', heroMid: '#1A6C10', heroB: '#2E7D1E',
+  heroKicker: '#C8E88D', heroSub: '#FDFCF4CC',
+  todo: '#8E9A8B', doing: '#0B5C03', blocked: '#C8462F', done: '#2F8F3A', warn: '#B7791F',
+  blockedSoft: '#FBE7E2', warnSoft: '#FBF1DC', doneSoft: '#E2F3E0',
+  track: '#FDFCF433', // see-through cream track on the green hero
+  brands: { Uni: '#0B5C03', LITE: '#C8961A', Both: '#3E7CB1' },
+  streams: ['#2E7D1E', '#3E7CB1', '#8A5CC2', '#C2577F', '#2E8C83', '#B7791F'],
 };
 
+/** Brand tag colour: Uni green, LITE gold, Both blue; anything else from a fixed palette. */
 export function streamColor(name) {
+  if (C.brands[name]) return C.brands[name];
   let h = 0;
-  for (const ch of String(name || 'General')) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  for (const ch of String(name || 'Both')) h = (h * 31 + ch.codePointAt(0)) >>> 0;
   return C.streams[h % C.streams.length];
 }
 
 // ---- animated banners (brand/banner-*.png) -------------------------------
 let ASSET_BASE = '';
 let ASSET_V = '1';
-/** e.g. setAssetBase('https://norse-bot-xxx.run.app', 'a1b2c3') */
+/** e.g. setAssetBase('https://delta-edu-bot-xxx.run.app', 'a1b2c3') */
 export function setAssetBase(base, version = ASSET_V) { ASSET_BASE = String(base || '').replace(/\/$/, ''); ASSET_V = version; }
 export const assetBase = () => ASSET_BASE;
 export const BANNERS = ['morning', 'done', 'weekly', 'welcome'];
@@ -56,7 +61,7 @@ export const datePicker = (label, data, { initial, min } = {}) => ({
   type: 'datetimepicker', label: label.slice(0, 20), data, mode: 'date',
   ...(initial ? { initial } : {}), ...(min ? { min } : {}),
 });
-/** Tap = the user "types" this text (free, no AI). In a group it needs @Norse in front. */
+/** Tap = the user "types" this text (free, no AI). In a group it needs @Delta in front. */
 export const say = (label, text) => ({ type: 'message', label: label.slice(0, 20), text });
 
 export function quickReply(actions) {
@@ -67,7 +72,7 @@ export function quickReply(actions) {
 function pill(action, kind = 'secondary', o = {}) {
   const styles = {
     primary: { bg: null, color: C.onAccent, border: C.heroA },
-    secondary: { bg: C.panel2, color: C.ink, border: C.line },
+    secondary: { bg: C.panel2, color: C.accent, border: C.line },
     danger: { bg: C.panel, color: C.blocked, border: C.blocked },
     ghost: { bg: C.panel, color: C.muted, border: C.panel },
   }[kind];
@@ -78,7 +83,7 @@ function pill(action, kind = 'secondary', o = {}) {
   });
 }
 const pillRow = (...items) => box('horizontal', items, { spacing: 'sm' });
-/** Buttons from actions: the first is the mint one, two per row. */
+/** Buttons from actions: the first is the green one, two per row. */
 function buttonRows(actions, firstKind = 'primary') {
   const rows = [];
   for (let i = 0; i < actions.length; i += 2) {
@@ -101,7 +106,7 @@ function tag(text, kind) {
 }
 function streamTag(name) {
   const c = streamColor(name);
-  return box('horizontal', [dot(c, '6px'), t(name || 'General', { size: 'xxs', weight: 'bold', color: c, wrap: false, margin: 'sm', flex: 0 })], {
+  return box('horizontal', [dot(c, '6px'), t(name || 'Both', { size: 'xxs', weight: 'bold', color: c, wrap: false, margin: 'sm', flex: 0 })], {
     backgroundColor: C.panel, borderColor: C.line, borderWidth: 'light', cornerRadius: 'xxl', alignItems: 'center',
     paddingStart: '9px', paddingEnd: '10px', paddingTop: '3px', paddingBottom: '3px', flex: 0,
   });
@@ -112,7 +117,7 @@ const tags = (...items) => box('horizontal', items.filter(Boolean), { spacing: '
 function avatar(name, size = 28) {
   const initials = String(name || '?').trim().slice(0, 2).toUpperCase();
   return box('vertical', [t(initials, { size: size < 26 ? 'xxs' : 'xs', weight: 'bold', align: 'center', color: C.onAccent, wrap: false })], {
-    width: `${size}px`, height: `${size}px`, cornerRadius: 'xxl', backgroundColor: streamColor('@' + name), justifyContent: 'center', flex: 0,
+    width: `${size}px`, height: `${size}px`, cornerRadius: 'xxl', backgroundColor: C.streams[[...String(name)].reduce((h, ch) => (h * 31 + ch.codePointAt(0)) >>> 0, 7) % C.streams.length], justifyContent: 'center', flex: 0,
   });
 }
 /** Overlapping avatars (like the dashboard's avatar stack), each with a ring in the panel colour. */
@@ -148,11 +153,11 @@ function stackBar(parts, { track = C.panel3, height = '10px', margin } = {}) {
 /** Gradient hero header like .kpi.hero: kicker, title, optional big value, sub and a bar on a dark track. */
 function hero({ kicker, title, big, sub, barPct, stack }) {
   return box('vertical', [
-    kicker ? t(kicker, { size: 'xxs', weight: 'bold', color: '#0C1715A6' }) : null,
+    kicker ? t(kicker, { size: 'xxs', weight: 'bold', color: C.heroKicker }) : null,
     title ? t(title, { size: big != null ? 'sm' : 'lg', weight: 'bold', color: C.onAccent, margin: kicker ? 'xs' : undefined }) : null,
     big != null ? t(String(big), { size: '3xl', weight: 'bold', color: C.onAccent, margin: 'sm' }) : null,
-    sub ? t(sub, { size: 'xs', color: '#0C1715CC', margin: 'xs' }) : null,
-    stack ? stackBar(stack, { track: C.track, margin: 'lg' }) : barPct != null ? bar(barPct, C.onAccent, { track: C.track, margin: 'lg' }) : null,
+    sub ? t(sub, { size: 'xs', color: C.heroSub, margin: 'xs' }) : null,
+    stack ? stackBar(stack, { track: C.track, margin: 'lg' }) : barPct != null ? bar(barPct, C.lime, { track: C.track, margin: 'lg' }) : null,
   ], {
     background: { type: 'linearGradient', angle: '135deg', startColor: C.heroA, centerColor: C.heroMid, endColor: C.heroB },
     paddingAll: '18px',
@@ -177,7 +182,7 @@ function titleBlock({ kicker, title, sub, color = C.accent }) {
   ]);
 }
 
-/** Coloured stripe across the top of a card (workstream colour). */
+/** Coloured stripe across the top of a card (brand colour). */
 const stripe = (color) => box('vertical', [filler()], { height: '5px', backgroundColor: color, paddingAll: '0px' });
 
 function bubble({ header, hero: heroBlock, body = [], footer = [], size = 'kilo', bodyBg = C.panel }) {
@@ -203,56 +208,57 @@ const row = (icon, value, color = C.ink) => box('horizontal', [
 ], { alignItems: 'center', margin: 'sm' });
 
 export function dueLabel(due, today, status) {
-  if (!due) return { text: 'ยังไม่มีวันส่ง', color: C.muted, late: false, short: 'ไม่มีกำหนด' };
+  if (!due) return { text: 'No due date', color: C.muted, late: false, short: 'no date' };
   const n = diffDays(today, due);
   if (status === 'done') return { text: formatDay(due, today), color: C.muted, late: false, short: formatDay(due, today) };
   return { text: `${formatDay(due, today)} · ${relDays(n)}`, color: n <= 1 ? C.warn : C.muted, late: n < 0, today: n === 0, short: relDays(n) };
 }
-/** Due-date chip: amber when late or due within a day, mint when today, quiet otherwise. */
+/** Due-date chip: amber when late or due within a day, green when today, quiet otherwise. */
 function dueChip(due, today, status) {
   const d = dueLabel(due, today, status);
   const kind = status === 'done' ? 'low' : d.late ? 'overdue' : d.today ? 'accent' : due && diffDays(today, due) <= 1 ? 'overdue' : 'low';
-  return tag(`📅 ${due ? formatDay(due, today) : 'ไม่มีกำหนด'}${due && status !== 'done' ? ' · ' + d.short : ''}`, kind);
+  return tag(`📅 ${due ? formatDay(due, today) : 'No date'}${due && status !== 'done' ? ' · ' + d.short : ''}`, kind);
 }
 
 // ---- drafts (confirm before saving) ------------------------------------
 export function draftMessage(draft, today) {
   const bubbles = draft.tasks.map((task, i) => {
-    const due = task.due ? dueLabel(task.due, today) : task.noDue ? { text: 'ไม่มีกำหนดส่ง', color: C.muted } : { text: 'ยังไม่มีวันส่ง · เลือกวันก่อน', color: C.blocked };
+    const due = task.due ? dueLabel(task.due, today) : task.noDue ? { text: 'No due date', color: C.muted } : { text: 'No due date yet · pick one', color: C.blocked };
     const ready = task.owners.length && (task.due || task.noDue);
     return bubble({
       header: plainHeader({
-        kicker: draft.tasks.length > 1 ? `งานใหม่ ${i + 1}/${draft.tasks.length} · รอยืนยัน` : 'งานใหม่ · รอยืนยัน',
-        title: task.title, sub: `จาก ${draft.by}`, color: ready ? C.accent : C.warn,
+        kicker: draft.tasks.length > 1 ? `NEW TASK ${i + 1}/${draft.tasks.length} · TO CONFIRM` : 'NEW TASK · TO CONFIRM',
+        title: task.title, sub: `from ${draft.by}`, color: ready ? C.accent : C.warn,
       }),
       body: [
-        tags(streamTag(task.stream), tag({ high: 'High', med: 'Medium', low: 'Low' }[task.priority] || 'Medium', task.priority || 'med'), !ready ? tag('ยังไม่ครบ', 'overdue') : tag('พร้อม ✓', 'done')),
+        tags(streamTag(task.stream), tag({ high: 'High', med: 'Medium', low: 'Low' }[task.priority] || 'Medium', task.priority || 'med'), !ready ? tag('Missing info', 'overdue') : tag('Ready ✓', 'done')),
         task.owners.length
           ? box('horizontal', [avatarStack(task.owners, 26, C.panel), t(task.owners.join(', '), { size: 'sm', color: C.ink, gravity: 'center', margin: 'md', flex: 1 })], { margin: 'lg', alignItems: 'center' })
-          : row('👤', 'ยังไม่รู้ว่าใครทำ', C.blocked),
+          : row('👤', 'Who does it? Pick someone', C.blocked),
         row('📅', due.text, due.color),
       ],
       footer: [
-        pill(postback('ยืนยัน', `a=dok&d=${draft.id}`), 'primary'),
+        pill(postback('Confirm', `a=dok&d=${draft.id}`), 'primary'),
         pillRow(
-          pill(datePicker('วันส่ง', `a=ddt&d=${draft.id}&i=${i}`, { initial: task.due && task.due >= today ? task.due : today, min: today })),
-          pill(postback('คนทำ', `a=dow&d=${draft.id}&i=${i}`)),
+          pill(datePicker('Due date', `a=ddt&d=${draft.id}&i=${i}`, { initial: task.due && task.due >= today ? task.due : today, min: today })),
+          pill(postback('Who', `a=dow&d=${draft.id}&i=${i}`)),
         ),
         pillRow(
-          pill(postback('ชื่องาน', `a=dti&d=${draft.id}&i=${i}`)),
-          pill(postback('หมวด', `a=dst&d=${draft.id}&i=${i}`)),
+          pill(postback('Title', `a=dti&d=${draft.id}&i=${i}`)),
+          pill(postback('Brand', `a=dst&d=${draft.id}&i=${i}`)),
         ),
-        pill(postback('ยกเลิก', `a=dx&d=${draft.id}`), 'ghost'),
+        pill(postback('Cancel', `a=dx&d=${draft.id}`), 'ghost'),
       ],
     });
   });
-  const alt = `งานใหม่รอยืนยัน: ${draft.tasks.map((x) => x.title).join(', ')}`;
+  const alt = `New task to confirm: ${draft.tasks.map((x) => x.title).join(', ')}`;
   return flex(alt, bubbles.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles.slice(0, 10) });
 }
 
 export function createdMessage(tasks, today, by) {
-  return flex(`เพิ่มงานแล้ว ${tasks.length} งาน`, bubble({
-    header: hero({ kicker: 'NORSE · งานใหม่', title: `เพิ่มงานแล้ว ${tasks.length} งาน ✓`, sub: by ? `ยืนยันโดย ${by}` : undefined }),
+  const n = tasks.length === 1 ? '1 task' : `${tasks.length} tasks`;
+  return flex(`Added ${n}`, bubble({
+    header: hero({ kicker: 'δELTA EDU. · NEW TASK', title: `Added ${n} ✓`, sub: by ? `confirmed by ${by}` : undefined }),
     body: tasks.flatMap((task, i) => [
       i ? sep() : null,
       box('horizontal', [
@@ -281,9 +287,9 @@ export function meetingMessage(m, today, { saved = false } = {}) {
     box('vertical', [
       t(a.title, { size: 'sm', weight: 'bold' }),
       box('horizontal', [
-        t(a.owners?.length ? a.owners.join(', ') : 'ยังไม่มีคนทำ', { size: 'xxs', color: a.owners?.length ? C.muted : C.blocked, flex: 0, gravity: 'center' }),
+        t(a.owners?.length ? a.owners.join(', ') : 'No owner yet', { size: 'xxs', color: a.owners?.length ? C.muted : C.blocked, flex: 0, gravity: 'center' }),
         filler(),
-        a.due ? dueChip(a.due, today) : tag('ไม่มีกำหนด', 'low'),
+        a.due ? dueChip(a.due, today) : tag('No date', 'low'),
       ], { margin: 'xs', alignItems: 'center' }),
     ], { flex: 1, margin: 'md' }),
   ], { margin: i ? 'md' : 'sm' }));
@@ -295,22 +301,22 @@ export function meetingMessage(m, today, { saved = false } = {}) {
   ], { margin: 'xl', alignItems: 'center' });
   const body = [
     m.summary ? t(m.summary, { size: 'sm', color: C.muted }) : null,
-    m.decisions.length ? head('✓ ตัดสินใจ', m.decisions.length, C.done) : null,
+    m.decisions.length ? head('✓ Decided', m.decisions.length, C.done) : null,
     ...sectionRows(m.decisions, '✓', C.done),
-    m.actions.length ? head('→ งานที่ต้องทำ', m.actions.length, C.accent) : null,
+    m.actions.length ? head('→ To do', m.actions.length, C.accent) : null,
     ...actionRows,
-    m.questions.length ? head('? คำถามค้าง', m.questions.length, C.warn) : null,
+    m.questions.length ? head('? Open questions', m.questions.length, C.warn) : null,
     ...sectionRows(m.questions, '?', C.warn),
-    !m.decisions.length && !m.actions.length && !m.questions.length ? t('ไม่เจอเรื่องที่ตัดสินใจหรืองานที่ต้องทำในโน้ตนี้', { size: 'xs', color: C.muted, margin: 'md' }) : null,
+    !m.decisions.length && !m.actions.length && !m.questions.length ? t('No decisions or action items found in these notes.', { size: 'xs', color: C.muted, margin: 'md' }) : null,
   ].filter(Boolean);
   const sub = [m.date ? formatDay(m.date, today) : '', m.attendees.length ? m.attendees.join(', ') : ''].filter(Boolean).join(' · ');
-  return flex(`${saved ? 'บันทึกประชุมแล้ว' : 'สรุปประชุม · รอบันทึก'}: ${m.title}`, bubble({
+  return flex(`${saved ? 'Meeting saved' : 'Meeting summary · to save'}: ${m.title}`, bubble({
     size: 'mega',
-    header: hero({ kicker: saved ? 'NORSE · ประชุม · บันทึกแล้ว ✓' : 'NORSE · ประชุม · รอบันทึก', title: m.title || 'ประชุมทีม', sub }),
+    header: hero({ kicker: saved ? 'δELTA EDU. · MEETING · SAVED ✓' : 'δELTA EDU. · MEETING · TO SAVE', title: m.title || 'Team meeting', sub }),
     body,
     footer: saved ? [] : [
-      pill(postback('บันทึกลงบอร์ด', `a=mok&m=${m.id}`, 'บันทึกประชุม'), 'primary'),
-      pill(postback('ยกเลิก', `a=mx&m=${m.id}`, 'ยกเลิก'), 'ghost'),
+      pill(postback('Save to board', `a=mok&m=${m.id}`, 'Save meeting'), 'primary'),
+      pill(postback('Cancel', `a=mx&m=${m.id}`, 'Cancel'), 'ghost'),
     ],
   }));
 }
@@ -320,19 +326,19 @@ export function taskBubble(task, today, { actions = true, note } = {}) {
   const due = dueLabel(task.due, today, task.status);
   const footer = [];
   if (actions && task.status !== 'done') {
-    footer.push(pill(postback('เสร็จแล้ว ✓', `a=td&t=${task.id}`, `${task.title} เสร็จแล้ว`), 'primary'));
+    footer.push(pill(postback('Done ✓', `a=td&t=${task.id}`, `${task.title} done`), 'primary'));
     footer.push(pillRow(
-      pill(datePicker('ขอเลื่อน', `a=tp&t=${task.id}`, { initial: task.due && task.due > today ? task.due : today, min: today })),
+      pill(datePicker('Postpone', `a=tp&t=${task.id}`, { initial: task.due && task.due > today ? task.due : today, min: today })),
       task.status === 'blocked'
-        ? pill(postback('แก้ได้แล้ว', `a=tu&t=${task.id}`, 'แก้ได้แล้ว'))
-        : pill(postback('ติดอยู่', `a=tb&t=${task.id}`), 'danger'),
+        ? pill(postback('Unblocked', `a=tu&t=${task.id}`, 'Unblocked'))
+        : pill(postback('Blocked', `a=tb&t=${task.id}`), 'danger'),
     ));
   }
   return bubble({
     bodyBg: C.panel2,
     header: { ...stripe(streamColor(task.stream)), backgroundColor: streamColor(task.stream) },
     body: [
-      tags(streamTag(task.stream), tag(STATUS_TH[task.status], task.status), due.late ? tag('เลยกำหนด', 'overdue') : null),
+      tags(streamTag(task.stream), tag(STATUS_LABEL[task.status], task.status), due.late ? tag('Overdue', 'overdue') : null),
       note ? t(note, { size: 'xs', color: C.warn, weight: 'bold', margin: 'md' }) : null,
       t(task.title, { weight: 'bold', size: 'md', margin: note ? 'xs' : 'md' }),
       task.status === 'blocked' && task.blocker ? box('horizontal', [t('🚧', { size: 'xs', flex: 0 }), t(task.blocker, { size: 'xs', color: C.blocked, margin: 'sm' })], { margin: 'xs' }) : null,
@@ -342,12 +348,12 @@ export function taskBubble(task, today, { actions = true, note } = {}) {
   });
 }
 
-export function taskListMessage(tasks, today, { empty = 'ไม่มีงานค้าง 🎉', alt = 'งานของฉัน', notes = {} } = {}) {
+export function taskListMessage(tasks, today, { empty = 'No open tasks 🎉', alt = 'My tasks', notes = {} } = {}) {
   if (!tasks.length) {
-    return flex(empty, bubble({ header: hero({ kicker: 'NORSE', title: empty, sub: 'มีงานใหม่เมื่อไหร่ จะแจ้งในแชทนี้' }), body: [t('พิมพ์ "งานใหม่: …" หรือกดเมนู เพิ่มงาน ได้เลย', { size: 'xs', color: C.muted })] }));
+    return flex(empty, bubble({ header: hero({ kicker: 'δELTA EDU.', title: empty, sub: "New tasks for you will show up in this chat" }), body: [t('Type "new task: …" or tap New task in the menu.', { size: 'xs', color: C.muted })] }));
   }
   const bubbles = tasks.slice(0, 10).map((x) => taskBubble(x, today, { note: notes[x.id] }));
-  const more = tasks.length > 10 ? [textMsg(`และอีก ${tasks.length - 10} งาน (แสดง 10 งานที่ใกล้ส่งที่สุด)`)] : [];
+  const more = tasks.length > 10 ? [textMsg(`…and ${tasks.length - 10} more (showing the 10 due soonest)`)] : [];
   return [flex(`${alt} (${tasks.length})`, bubbles.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles }), ...more];
 }
 
@@ -379,9 +385,9 @@ export function teamMessage({ members, tasks, today }) {
       box('vertical', [
         box('horizontal', [
           t(m.nickname, { weight: 'bold', size: 'sm', flex: 1 }),
-          t(`${mine.length} งาน`, { size: 'xxs', color: late ? C.warn : C.muted, flex: 0, gravity: 'center' }),
+          t(mine.length === 1 ? '1 task' : `${mine.length} tasks`, { size: 'xxs', color: late ? C.warn : C.muted, flex: 0, gravity: 'center' }),
         ]),
-        t(cur ? `${cur.status === 'blocked' ? '🚧 ' : ''}${cur.title}` : 'ว่าง ไม่มีงานค้าง', { size: 'xxs', color: cur?.status === 'blocked' ? C.blocked : C.muted, wrap: false }),
+        t(cur ? `${cur.status === 'blocked' ? '🚧 ' : ''}${cur.title}` : 'Free · nothing open', { size: 'xxs', color: cur?.status === 'blocked' ? C.blocked : C.muted, wrap: false }),
         bar((mine.length / maxLoad) * 100, cur?.status === 'blocked' ? C.blocked : late ? C.warn : C.accent, { height: '4px', margin: 'sm' }),
       ], { flex: 1, margin: 'md' }),
     ], { alignItems: 'center', margin: 'lg' });
@@ -395,24 +401,24 @@ export function teamMessage({ members, tasks, today }) {
     ], { paddingAll: '9px', flex: 1 }),
   ], { backgroundColor: C.panel2, borderColor: C.line, borderWidth: 'light', cornerRadius: 'md', margin: 'sm' });
   const risks = [...blocked.map((x) => risk(x, 'blocked')), ...overdue.map((x) => risk(x, 'overdue'))].slice(0, 6);
-  return flex('งานทีม', bubble({
+  return flex('Team tasks', bubble({
     size: 'mega',
     header: hero({
-      kicker: 'NORSE · งานทีม', title: 'เสร็จแล้ว', big: `${pct}%`, sub: `${open.length} งานเปิดอยู่ · เสร็จ ${done.length} จาก ${tasks.length}`,
-      stack: [{ value: done.length, color: C.onAccent }, { value: doing.length, color: '#0C171599' }, { value: blocked.length, color: '#B8432F' }, { value: todo.length, color: '#0C171540' }],
+      kicker: 'δELTA EDU. · TEAM', title: 'Done', big: `${pct}%`, sub: `${open.length} open · ${done.length} of ${tasks.length} done`,
+      stack: [{ value: done.length, color: C.lime }, { value: doing.length, color: '#FDFCF4B3' }, { value: blocked.length, color: '#F08A6E' }, { value: todo.length, color: '#FDFCF440' }],
     }),
     body: [
       box('horizontal', [
-        kpiTile('กำลังทำ', doing.length, C.doing, (doing.length / n) * 100),
-        kpiTile('ยังไม่เริ่ม', todo.length, C.todo, (todo.length / n) * 100),
+        kpiTile('Doing', doing.length, C.doing, (doing.length / n) * 100),
+        kpiTile('To do', todo.length, C.todo, (todo.length / n) * 100),
       ], { spacing: 'sm' }),
       box('horizontal', [
-        kpiTile('เลยกำหนด', overdue.length, C.warn, (overdue.length / n) * 100),
-        kpiTile('ติดอยู่', blocked.length, C.blocked, (blocked.length / n) * 100),
+        kpiTile('Overdue', overdue.length, C.warn, (overdue.length / n) * 100),
+        kpiTile('Blocked', blocked.length, C.blocked, (blocked.length / n) * 100),
       ], { spacing: 'sm', margin: 'sm' }),
-      t('ทีม', { weight: 'bold', size: 'sm', margin: 'xl' }),
+      t('Team', { weight: 'bold', size: 'sm', margin: 'xl' }),
       ...people,
-      risks.length ? t(`ความเสี่ยง · ติด ${blocked.length} · เลยกำหนด ${overdue.length}`, { weight: 'bold', size: 'sm', margin: 'xl' }) : null,
+      risks.length ? t(`Risks · ${blocked.length} blocked · ${overdue.length} overdue`, { weight: 'bold', size: 'sm', margin: 'xl' }) : null,
       ...risks,
     ],
   }));
@@ -433,7 +439,7 @@ function taskLine(x, today) {
     box('vertical', [filler()], { width: '4px', backgroundColor: streamColor(x.stream), cornerRadius: 'xxl', flex: 0 }),
     box('vertical', [
       t(x.title, { size: 'sm', weight: 'bold' }),
-      t(`${x.stream || 'General'} · ${d.text}`, { size: 'xxs', color: d.late ? C.warn : C.muted }),
+      t(`${x.stream || 'Both'} · ${d.text}`, { size: 'xxs', color: d.late ? C.warn : C.muted }),
     ], { flex: 1, margin: 'md' }),
   ], { margin: 'md' });
 }
@@ -450,15 +456,15 @@ export function digestMessages({ greeting, sections, today, actionable }) {
   const out = [flex(greeting, bubble({
     size: 'mega',
     hero: pic,
-    header: pic ? undefined : hero({ kicker: formatDay(today), title: greeting, sub: total ? `${total} งานที่ควรดู` : 'วันนี้ไม่มีงานค้าง 🎉' }),
+    header: pic ? undefined : hero({ kicker: formatDay(today), title: greeting, sub: total ? `${total} to look at` : 'Nothing open today 🎉' }),
     body: [
-      pic ? titleBlock({ kicker: formatDay(today), title: greeting, sub: total ? `${total} งานที่ควรดู` : 'วันนี้ไม่มีงานค้าง 🎉' }) : null,
-      ...(lines.length ? lines : [t('สบายๆ ไม่มีอะไรต้องรีบ หายใจลึกๆ แล้วลุยต่อ 🌿', { color: C.muted, size: 'xs', margin: 'md' })]),
+      pic ? titleBlock({ kicker: formatDay(today), title: greeting, sub: total ? `${total} to look at` : 'Nothing open today 🎉' }) : null,
+      ...(lines.length ? lines : [t('All clear. Nothing urgent today 🌿', { color: C.muted, size: 'xs', margin: 'md' })]),
     ].filter(Boolean),
   }))];
   if (actionable?.length) {
     const bubbles = actionable.slice(0, 10).map((x) => taskBubble(x, today, { note: x._note }));
-    out.push(flex('งานที่ต้องอัปเดต', bubbles.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles }));
+    out.push(flex('Tasks to update', bubbles.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles }));
   }
   return out;
 }
@@ -476,11 +482,11 @@ export function weeklyMessage({ title, subtitle, sections, stats = [] }) {
     }
   }
   const pic = banner('weekly');
-  if (pic) body.unshift(titleBlock({ kicker: 'NORSE · สัปดาห์นี้', title, sub: subtitle }));
+  if (pic) body.unshift(titleBlock({ kicker: 'δELTA EDU. · THIS WEEK', title, sub: subtitle }));
   if (pic && stats.length) body[1] = { ...body[1], margin: 'lg' };
   return flex(title, bubble({
     size: 'mega', hero: pic,
-    header: pic ? undefined : hero({ kicker: 'NORSE · สัปดาห์นี้', title, sub: subtitle }),
+    header: pic ? undefined : hero({ kicker: 'δELTA EDU. · THIS WEEK', title, sub: subtitle }),
     body,
   }));
 }
@@ -490,21 +496,21 @@ export function usageMessage({ ai, push, members, linked }) {
   const rows = ai.models.length ? ai.models.map((m) => box('vertical', [
     box('horizontal', [
       t(m.model.replace(/^gemini-/, ''), { size: 'xs', flex: 1 }),
-      m.exhausted ? tag('หมดวันนี้', 'blocked') : t(`${m.used}${m.limit ? ' / ' + m.limit : ''}`, { size: 'xs', color: C.muted, flex: 0 }),
+      m.exhausted ? tag('Used up today', 'blocked') : t(`${m.used}${m.limit ? ' / ' + m.limit : ''}`, { size: 'xs', color: C.muted, flex: 0 }),
     ], { alignItems: 'center' }),
     bar(m.exhausted ? 100 : m.limit ? (m.used / m.limit) * 100 : Math.min(100, m.used * 5), m.exhausted ? C.blocked : C.accent, { height: '4px', margin: 'sm' }),
-  ], { margin: 'md' })) : [t('ยังไม่ได้ใช้ AI วันนี้', { size: 'xs', color: C.muted })];
+  ], { margin: 'md' })) : [t('No AI used today yet', { size: 'xs', color: C.muted })];
   const pushPct = push.limit ? (push.used / push.limit) * 100 : 0;
-  return flex('ตั้งค่าและการใช้งาน', bubble({
+  return flex('Settings and usage', bubble({
     size: 'mega',
-    header: hero({ kicker: 'NORSE · ตั้งค่า', title: 'AI วันนี้', big: `${ai.total} ครั้ง`, sub: `${ai.label} · รีเซ็ต ${ai.resetText}` }),
+    header: hero({ kicker: 'δELTA EDU. · SETTINGS', title: 'AI today', big: `${ai.total} ${ai.total === 1 ? 'call' : 'calls'}`, sub: `${ai.label} · resets ${ai.resetText}` }),
     body: [
-      t('โควตา AI ต่อโมเดล', { weight: 'bold', size: 'sm' }),
+      t('AI quota per model', { weight: 'bold', size: 'sm' }),
       ...rows,
       sep('xl'),
       box('horizontal', [
-        kpiTile('push เดือนนี้', `${push.used}/${push.limit}`, pushPct > 80 ? C.blocked : pushPct > 60 ? C.warn : C.accent, pushPct),
-        kpiTile('เชื่อม LINE', `${linked}/${members}`, C.done, members ? (linked / members) * 100 : 0),
+        kpiTile('Pushes this month', `${push.used}/${push.limit}`, pushPct > 80 ? C.blocked : pushPct > 60 ? C.warn : C.accent, pushPct),
+        kpiTile('Linked to LINE', `${linked}/${members}`, C.done, members ? (linked / members) * 100 : 0),
       ], { spacing: 'sm', margin: 'xl' }),
     ],
   }));
@@ -512,12 +518,12 @@ export function usageMessage({ ai, push, members, linked }) {
 
 // ---- small cards for outcomes (instead of plain text) ---------------------
 const RESULT = {
-  done: { icon: '✓', label: 'เสร็จแล้ว', color: C.done, soft: C.doneSoft },
-  postpone: { icon: '📅', label: 'เลื่อนวันส่งแล้ว', color: C.accent, soft: C.accentSoft },
-  start: { icon: '▶', label: 'เริ่มแล้ว', color: C.doing, soft: C.accentSoft },
-  unblock: { icon: '▶', label: 'กลับมาเดินต่อ', color: C.doing, soft: C.accentSoft },
-  blocked: { icon: '🚧', label: 'ติดอยู่', color: C.blocked, soft: C.blockedSoft },
-  already: { icon: '✓', label: 'เสร็จไปแล้ว', color: C.muted, soft: C.panel2 },
+  done: { icon: '✓', label: 'Done', color: C.done, soft: C.doneSoft },
+  postpone: { icon: '📅', label: 'Moved', color: C.accent, soft: C.accentSoft },
+  start: { icon: '▶', label: 'Started', color: C.doing, soft: C.accentSoft },
+  unblock: { icon: '▶', label: 'Back on track', color: C.doing, soft: C.accentSoft },
+  blocked: { icon: '🚧', label: 'Blocked', color: C.blocked, soft: C.blockedSoft },
+  already: { icon: '✓', label: 'Already done', color: C.muted, soft: C.panel2 },
 };
 
 function chip(kind) {
@@ -528,7 +534,7 @@ function chip(kind) {
 }
 
 /**
- * One task after a change: status chip, title, workstream, people, due date, a note,
+ * One task after a change: status chip, title, brand, people, due date, a note,
  * and buttons for the next step. "done" gets the animated celebration banner.
  */
 export function resultMessage({ kind, task, today, note, noteColor, headline, buttons = [] }) {
@@ -553,10 +559,10 @@ export function resultMessage({ kind, task, today, note, noteColor, headline, bu
 }
 
 /** Group ✓ lines ("✓ Jai · mockup") as one card. */
-export function noticesMessage(text, title = 'อัปเดตจากทีม') {
+export function noticesMessage(text, title = 'Team updates') {
   const lines = String(text).split('\n').map((l) => l.trim()).filter(Boolean);
   return flex(`${title}: ${lines.join(' / ')}`.slice(0, 380), bubble({
-    header: hero({ kicker: 'NORSE · ทีม', title, sub: `${lines.length} งานเสร็จ` }),
+    header: hero({ kicker: 'δELTA EDU. · TEAM', title, sub: lines.length === 1 ? '1 task done' : `${lines.length} tasks done` }),
     body: lines.slice(0, 15).map((l, i) => {
       const m = /^✓\s*(.*?)\s*·\s*(.*)$/.exec(l);
       return box('horizontal', [
@@ -579,13 +585,13 @@ export function infoMessage({ title, sub, alt, tone = 'hero', lines = [], steps 
   const pic = bannerName ? banner(bannerName) : undefined;
   const header = tone === 'warn'
     ? box('vertical', [
-      t('NORSE · แจ้งเตือน', { size: 'xxs', weight: 'bold', color: C.warn }),
+      t('δELTA EDU. · HEADS UP', { size: 'xxs', weight: 'bold', color: C.warn }),
       t(title, { size: 'lg', weight: 'bold', color: C.ink, margin: 'xs' }),
       sub ? t(sub, { size: 'xs', color: C.muted, margin: 'xs' }) : null,
     ], { backgroundColor: C.warnSoft, paddingAll: '18px' })
-    : pic ? undefined : hero({ kicker: 'NORSE', title, sub });
+    : pic ? undefined : hero({ kicker: 'δELTA EDU.', title, sub });
   const body = [
-    pic ? titleBlock({ kicker: 'NORSE', title, sub }) : null,
+    pic ? titleBlock({ kicker: 'δELTA EDU.', title, sub }) : null,
     ...lines.map((l) => t(l, { size: 'sm', color: C.ink })),
     ...steps.map((st, i) => box('horizontal', [
       box('vertical', [t(String(i + 1), { size: 'xxs', weight: 'bold', align: 'center', color: C.onAccent })], {
@@ -610,27 +616,31 @@ export function infoMessage({ title, sub, alt, tone = 'hero', lines = [], steps 
 export function helpMessage(chat, botName) {
   if (chat === 'group') {
     return infoMessage({
-      title: `เรียก @${botName} แบบนี้`, sub: 'คุยกันปกติ บอทไม่ตอบ', alt: `วิธีใช้ ${botName} ในกลุ่ม`,
+      title: `Call @${botName} like this`, sub: "Normal chat is ignored", alt: `How to use ${botName} in the group`,
       steps: [
-        { text: `@${botName} นน กับ เจ ทำ mockup ส่งศุกร์` },
-        { text: `@${botName} งานทีม`, cmd: `@${botName} งานทีม` },
-        { text: `@${botName} ใครทำ supplier อยู่` },
-        { text: `@${botName} บอร์ด`, cmd: `@${botName} บอร์ด` },
-        { text: `@${botName} ประชุม → ส่งโน้ต / เสียง / รูปไวท์บอร์ด`, cmd: `@${botName} ประชุม` },
+        { text: `@${botName} Kiak and Pure: Thermo I slides by Friday, Uni` },
+        { text: `@${botName} team`, cmd: `@${botName} team` },
+        { text: `@${botName} classes`, cmd: `@${botName} classes` },
+        { text: `@${botName} decisions`, cmd: `@${botName} decisions` },
+        { text: `@${botName} who is on the SAT launch?` },
+        { text: `@${botName} board`, cmd: `@${botName} board` },
+        { text: `@${botName} meeting → notes / voice / whiteboard photo`, cmd: `@${botName} meeting` },
       ],
-      lines: ['อัปเดตงานตัวเอง (เสร็จ / เลื่อน / ติด) ทำในแชทส่วนตัวกับ Norse'],
+      lines: [`Update your own tasks (done / postpone / blocked) in your 1:1 chat with ${botName}.`],
     });
   }
   return infoMessage({
-    title: 'ใช้ Norse แบบนี้', sub: 'กดเมนูด้านล่าง หรือพิมพ์ได้เลย', alt: `วิธีใช้ ${botName}`,
+    title: `Using ${botName}`, sub: 'Tap the menu below or just type', alt: `How to use ${botName}`,
     steps: [
-      { text: 'งานฉัน', cmd: 'งานฉัน' },
-      { text: 'วันนี้ทำอะไรดี', cmd: 'วันนี้ทำอะไรดี' },
-      { text: 'mockup เสร็จแล้ว · ขอเลื่อนเป็นจันทร์' },
-      { text: 'ติด supplier ยังไม่ตอบ' },
-      { text: 'งานใหม่: ทำ deck ส่งพฤหัส' },
-      { text: 'ประชุม → ส่งโน้ต / เสียง / รูปไวท์บอร์ด', cmd: 'ประชุม' },
-      { text: 'งานทีม', cmd: 'งานทีม' },
+      { text: 'my tasks', cmd: 'my tasks' },
+      { text: 'today', cmd: 'today' },
+      { text: 'slides done · push to monday' },
+      { text: 'blocked, waiting for the price list' },
+      { text: 'new task: IGCSE worksheet by Thu' },
+      { text: 'classes · my classes', cmd: 'my classes' },
+      { text: 'pay 10 students 10h 300 (tutor pay)' },
+      { text: 'meeting → notes / voice / whiteboard photo', cmd: 'meeting' },
+      { text: 'team', cmd: 'team' },
     ],
   });
 }

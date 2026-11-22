@@ -6,7 +6,7 @@ const num = (v, d) => (v === undefined || v === '' || Number.isNaN(Number(v)) ? 
 export function loadConfig(env = process.env) {
   return {
     port: num(env.PORT, 8080),
-    botName: env.BOT_NAME || 'Norse',
+    botName: env.BOT_NAME || 'Delta',
     // Public https address of this service (for card images). Optional: found from requests.
     publicUrl: env.PUBLIC_URL || '',
     timeZone: env.TIMEZONE || 'Asia/Bangkok',
@@ -20,7 +20,7 @@ export function loadConfig(env = process.env) {
     // service account). The bot creates the tabs it needs on first start.
     sheetId: env.SHEET_ID || '',
     // First start only: nicknames to put in the Members tab when it is empty,
-    // "Nick/alias/alias:role", e.g. "Jai/เจ:admin, Best/เบสท์, Bonnie/บอนนี่".
+    // "Nick/alias/alias:role", e.g. "Best:founder, Jai:admin, Kiak:tutor, Pure".
     // Later, edit the Members tab directly.
     teamSeed: list(env.TEAM_SEED),
 

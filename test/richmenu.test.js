@@ -15,7 +15,9 @@ test('menu bar: six tap areas cover the whole image with no gaps or overlaps', (
   }
   assert.equal(total, MENU_SIZE.width * MENU_SIZE.height);
   const body = richMenuBody('abc12345');
-  assert.equal(body.name, 'norse-main-abc12345');
+  assert.equal(body.name, 'delta-main-abc12345');
+  assert.equal(body.chatBarText, 'Delta menu');
+  assert.deepEqual(BUTTONS.map((b) => b.action.label), ['My tasks', 'Today', 'Team', 'New task', 'Classes', 'Help']);
   assert.ok(body.chatBarText.length <= 14, 'LINE limit');
   assert.equal(body.areas.length, BUTTONS.length);
 });
@@ -39,32 +41,34 @@ test('menu bar images: 2500 x 843 PNG under 1 MB, with and without the dashboard
 });
 
 test('with a LIFF app the 6th button opens the board; without, it is help', () => {
-  assert.equal(richMenuBody('v').areas[5].action.text, 'วิธีใช้');
+  assert.equal(richMenuBody('v').areas[5].action.text, 'help');
+  assert.equal(richMenuBody('v').areas[4].action.text, 'my classes');
   assert.equal(imageFor({}), 'menu.png');
   const a = richMenuBody('v', { liffId: '2001-Ab' }).areas[5].action;
   assert.deepEqual([a.type, a.uri], ['uri', 'https://liff.line.me/2001-Ab']);
   assert.equal(imageFor({ liffId: '2001-Ab' }), 'menu-board.png');
 });
 
-test('เพิ่มงาน: the tap gets no reply; "งานใหม่: ..." always creates, never updates', async () => {
+test('New task: the tap gets no reply; "new task: ..." always creates, never updates', async () => {
   const w = await makeWorld();
-  const [t] = await w.team.createTasks([{ title: 'deck นำเสนอ', owners: ['Jai'], due: '2026-11-20' }], 'Jai');
+  const [t] = await w.team.createTasks([{ title: 'SAT deck', owners: ['Jai'], due: '2026-11-20' }], 'Jai');
   const before = w.client.replies.length;
   await w.tap('Jai', 'a=kbd');
   await w.tap('Ustranger', 'a=kbd');
   assert.equal(w.client.replies.length, before, 'no reply to the button itself');
 
-  assert.match(flat(await w.dm('Jai', 'งานใหม่:')), /งานอะไร/);
-  w.provider.next({ intent: 'create_tasks', tasks: [{ title: 'ทำ deck ให้เสร็จ', owners: ['@me'], due_text: 'ศุกร์', due_date: '2026-11-20', stream: '', priority: 'med' }] });
-  assert.match(flat(await w.dm('Jai', 'งานใหม่: ทำ deck ให้เสร็จก่อนศุกร์')), /ยืนยัน/);
+  assert.match(flat(await w.dm('Jai', 'new task:')), /What is the task/);
+  w.provider.next({ intent: 'create_tasks', tasks: [{ title: 'Get the SAT deck done', owners: ['@me'], due_text: 'friday', due_date: '2026-11-20', stream: 'LITE', priority: 'med' }] });
+  assert.match(flat(await w.dm('Jai', 'new task: get the SAT deck done by friday')), /Confirm/);
   assert.equal(w.provider.calls.length, 1, 'went to the AI as a new task');
-  assert.equal((await w.team.task(t.id)).status, 'todo', '"เสร็จ" in a new task did not close an old one');
+  assert.match(w.provider.calls[0].text, /Create a new task: get the SAT deck done/);
+  assert.equal((await w.team.task(t.id)).status, 'todo', '"done" in a new task did not close an old one');
 });
 
-test('scripts/rich-menu.js: creates once, skips when unchanged, replaces old Norse menus only', async () => {
+test('scripts/rich-menu.js: creates once, skips when unchanged, replaces our old menus only', async () => {
   const { execFile } = await import('node:child_process');
   const { createServer } = await import('node:http');
-  const menus = new Map([['old1', { richMenuId: 'old1', name: 'norse-main-00000000' }], ['other', { richMenuId: 'other', name: 'someone-else' }]]);
+  const menus = new Map([['old1', { richMenuId: 'old1', name: 'delta-main-00000000' }], ['other', { richMenuId: 'other', name: 'someone-else' }]]);
   let def = 'old1';
   let n = 0;
   const calls = [];
@@ -97,7 +101,7 @@ test('scripts/rich-menu.js: creates once, skips when unchanged, replaces old Nor
     assert.equal(r.code, 0, r.out);
     assert.match(r.out, /menu bar set/);
     assert.equal(def, 'new1');
-    assert.deepEqual([...menus.keys()].sort(), ['new1', 'other'], 'old Norse menu deleted, other menus kept');
+    assert.deepEqual([...menus.keys()].sort(), ['new1', 'other'], 'our old menu deleted, other menus kept');
     r = await run();
     assert.match(r.out, /already up to date/);
     assert.equal(n, 1, 'nothing new created');

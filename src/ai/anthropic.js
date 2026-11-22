@@ -43,7 +43,7 @@ export class AnthropicProvider {
         messages: history,
       })));
 
-      if (response.stop_reason === 'refusal') return { text: 'ขอโทษนะ อันนี้ตอบให้ไม่ได้' };
+      if (response.stop_reason === 'refusal') return { text: "Sorry, I can't help with that one." };
 
       const textBlocks = response.content.filter((b) => b.type === 'text').map((b) => b.text.trim()).filter(Boolean);
       const toolUses = response.content.filter((b) => b.type === 'tool_use');

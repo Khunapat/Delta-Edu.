@@ -1,7 +1,8 @@
-// Day-level dates for tasks: keys are 'YYYY-MM-DD' in the team's time zone.
-// parseThaiDate() reads phrases like "ศุกร์", "ศุกร์หน้า", "พรุ่งนี้", "20/11",
-// "20 พ.ย." and never guesses: "อาทิตย์หน้า" (next Sunday or next week?) comes
-// back as a question with options.
+// Day-level dates for tasks and classes: keys are 'YYYY-MM-DD' in the team's time zone.
+// parseDate() reads English ("friday", "next fri", "tomorrow", "20/11", "20 Nov",
+// "in 3 days") and Thai ("ศุกร์หน้า", "พรุ่งนี้", "20 พ.ย.") and never guesses:
+// "next week" (Friday or Sunday?) comes back as a question with options.
+// Everything the bot shows is English: "Fri 20 Nov", "in 3 days".
 
 const pad = (n) => String(n).padStart(2, '0');
 const THAI_DIGITS = '๐๑๒๓๔๕๖๗๘๙';
@@ -55,28 +56,31 @@ export function normalizeDate(v) {
 }
 function validDate(y, m, d) { return m >= 1 && m <= 12 && d >= 1 && d <= daysInMonth(y, m); }
 
-const TH_DOW_SHORT = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
-const TH_DOW = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+const EN_DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const EN_DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const EN_MON_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const TH_MON_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 const TH_MON_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const EN_MON = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const EN_MON = ['january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'sept', 'october', 'november', 'december',
+  'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const enMonth = (w) => ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(w.slice(0, 3)) + 1;
 
-/** "ศ. 20 พ.ย." (adds the year when it is not this year). */
+/** "Fri 20 Nov" (adds the year when it is not this year: "Mon 4 Jan 2027"). */
 export function formatDay(k, today) {
   if (!isDayKey(k)) return '';
   const [y, m, d] = k.split('-').map(Number);
-  const base = `${TH_DOW_SHORT[dow(k)]} ${d} ${TH_MON_SHORT[m - 1]}`;
+  const base = `${EN_DOW_SHORT[dow(k)]} ${d} ${EN_MON_SHORT[m - 1]}`;
   const thisYear = today ? Number(today.slice(0, 4)) : y;
-  return y === thisYear ? base : `${base} ${String(y + 543).slice(2)}`;
+  return y === thisYear ? base : `${base} ${y}`;
 }
-export function weekdayName(k) { return TH_DOW[dow(k)]; }
+export function weekdayName(k) { return EN_DOW[dow(k)]; }
 
-/** "วันนี้", "พรุ่งนี้", "อีก 3 วัน", "เมื่อวาน", "เลยมา 4 วัน" for diff = due - today. */
+/** "today", "tomorrow", "in 3 days", "1 day late", "4 days late" for diff = due - today. */
 export function relDays(n) {
-  if (n === 0) return 'วันนี้';
-  if (n === 1) return 'พรุ่งนี้';
-  if (n === -1) return 'เลยมา 1 วัน';
-  return n > 1 ? `อีก ${n} วัน` : `เลยมา ${-n} วัน`;
+  if (n === 0) return 'today';
+  if (n === 1) return 'tomorrow';
+  if (n === -1) return '1 day late';
+  return n > 1 ? `in ${n} days` : `${-n} days late`;
 }
 
 // ---- parsing ---------------------------------------------------------------
@@ -85,14 +89,15 @@ const WEEKDAYS = [
   // longest spellings first so "พฤหัสบดี" wins over "พฤหัส"
   ['พฤหัสบดี', 4], ['พฤหัส', 4], ['อาทิตย์', 0], ['จันทร์', 1], ['อังคาร', 2], ['พุธ', 3], ['ศุกร์', 5], ['เสาร์', 6],
   ['sunday', 0], ['monday', 1], ['tuesday', 2], ['wednesday', 3], ['thursday', 4], ['friday', 5], ['saturday', 6],
-  ['sun', 0], ['mon', 1], ['tue', 2], ['wed', 3], ['thu', 4], ['fri', 5], ['sat', 6],
+  // No "sat": it is the SAT exam far more often than Saturday here ("saturday" works).
+  ['sun', 0], ['mon', 1], ['tue', 2], ['wed', 3], ['thu', 4], ['fri', 5],
 ];
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const MONTH_WORDS = [
   ...TH_MON_FULL.map((w, i) => [w, i + 1]),
   ...TH_MON_SHORT.map((w, i) => [w, i + 1]),
   ...TH_MON_SHORT.map((w, i) => [w.replace(/\./g, ''), i + 1]),
-  ...EN_MON.map((w, i) => [w, i + 1]),
+  ...EN_MON.map((w) => [w, enMonth(w)]),
 ].sort((a, b) => b[0].length - a[0].length);
 const MONTH_RE = MONTH_WORDS.map(([w]) => esc(w)).join('|');
 
@@ -133,14 +138,23 @@ export function parseThaiDate(text, today) {
     const k = makeKey(+m[1], +m[2], +m[3]);
     return isDayKey(k) && validDate(+m[1], +m[2], +m[3]) ? { date: k, word: m[0] } : null;
   }
+  if ((m = /\b(this|next) weekend\b/.exec(s))) {
+    const sat = addDays(weekStart(today), m[1] === 'next' ? 12 : 5);
+    return { ambiguous: true, word: m[0], options: [sat, addDays(sat, 1)].filter((d) => d >= today).map((d) => ({ date: d, label: `${weekdayName(d)} · ${formatDay(d, today)}` })) };
+  }
   if ((m = /(?:^|[^\d])(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?![\d])/.exec(s))) {
     const k = dayMonth(today, +m[1], +m[2], m[3] ? +m[3] : 0);
     if (k) return { date: k, word: m[0].trim() };
   }
-  const reDm = new RegExp(`(\\d{1,2})\\s*(${MONTH_RE})(?:\\s*(\\d{2,4}))?`);
+  const reDm = new RegExp(`(\\d{1,2})(?:st|nd|rd|th)?\\s*(${MONTH_RE})(?![a-z])(?:\\s*(\\d{4}|\\d{2}(?!:)))?`);
   if ((m = reDm.exec(s))) {
     const mon = MONTH_WORDS.find(([w]) => w === m[2])?.[1];
     const k = mon && dayMonth(today, +m[1], mon, m[3] ? +m[3] : 0);
+    if (k) return { date: k, word: m[0] };
+  }
+  const reMd = new RegExp(`\\b(${EN_MON.filter((w) => w !== 'may').join('|')})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b(?:,?\\s*(\\d{4}))?`);
+  if ((m = reMd.exec(s))) {
+    const k = dayMonth(today, +m[2], enMonth(m[1]), m[3] ? +m[3] : 0);
     if (k) return { date: k, word: m[0] };
   }
 
@@ -166,16 +180,16 @@ export function parseThaiDate(text, today) {
     const mon = addDays(weekStart(today), next ? 7 : 0);
     const fri = addDays(mon, 4);
     const sun = addDays(mon, 6);
-    const options = [{ date: fri, label: `ศุกร์ ${formatDay(fri, today)}` }];
-    if (/อาทิตย์/.test(m[0])) options.unshift({ date: sun, label: `วันอาทิตย์ ${formatDay(sun, today)}` });
-    else options.push({ date: sun, label: `สิ้นสัปดาห์ ${formatDay(sun, today)}` });
+    const options = [{ date: fri, label: `Friday · ${formatDay(fri, today)}` }];
+    if (/อาทิตย์/.test(m[0])) options.unshift({ date: sun, label: `Sunday · ${formatDay(sun, today)}` });
+    else options.push({ date: sun, label: `End of week · ${formatDay(sun, today)}` });
     return { ambiguous: true, word: m[0], options: options.filter((o) => o.date >= today) };
   }
 
   for (const [name, wd] of WEEKDAYS) {
     const isEn = /^[a-z]/.test(name);
     const re = isEn
-      ? new RegExp(`(next\\s+|this\\s+)?\\b${name}\\b`)
+      ? new RegExp(`(next\\s+|this\\s+|coming\\s+)?\\b${name}\\b`)
       : new RegExp(`(?:วัน)?${name}(นี้|หน้า|ถัดไป)?`);
     if ((m = re.exec(s))) {
       const mod = m[1]?.trim();
@@ -190,3 +204,6 @@ export function parseThaiDate(text, today) {
   }
   return null;
 }
+
+/** Same parser, English name. */
+export const parseDate = parseThaiDate;

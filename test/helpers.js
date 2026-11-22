@@ -44,8 +44,8 @@ export class FakeProvider {
 }
 
 /** A team of 3, linked, with the group registered. Clock fixed at Mon 16 Nov 2026 09:00 Bangkok. */
-export async function makeWorld({ now = new Date('2026-11-16T02:00:00Z'), link = true, seed = 'Jai/เจ:admin, Best/เบสท์, Bonnie/บอนนี่' } = {}) {
-  const cfg = loadConfig({ BOT_NAME: 'Norse', CRON_SECRET: 's', TEAM_SEED: seed });
+export async function makeWorld({ now = new Date('2026-11-16T02:00:00Z'), link = true, seed = 'Jai/J:admin, Best:founder, Kiak/Kiakky:tutor' } = {}) {
+  const cfg = loadConfig({ BOT_NAME: 'Delta', CRON_SECRET: 's', TEAM_SEED: seed });
   const backend = new MemoryBackend();
   let clock = now.getTime();
   const db = new Db(backend, { ttlMs: 0, clock: () => clock });
@@ -62,11 +62,11 @@ export async function makeWorld({ now = new Date('2026-11-16T02:00:00Z'), link =
   const w = {
     cfg, backend, db, team, client, line, provider, ai, bot, scheduler, store,
     setNow(d) { clock = new Date(d).getTime(); },
-    uid: { Jai: 'Ujai', Best: 'Ubest', Bonnie: 'Ubonnie' },
+    uid: { Jai: 'Ujai', Best: 'Ubest', Kiak: 'Ukiak' },
     group: 'Cteam',
     async dm(who, text) { await bot.handle({ type: 'message', replyToken: 'r', source: { type: 'user', userId: w.uid[who] || who }, message: { type: 'text', text } }); return client.lastReply(); },
     async say(who, text, mention = true, extra = []) {
-      const prefix = mention ? '@Norse ' : '';
+      const prefix = mention ? '@Delta ' : '';
       const mentionees = mention ? [{ index: 0, length: 6, isSelf: true, type: 'user' }, ...extra] : extra;
       await bot.handle({ type: 'message', replyToken: 'r', source: { type: 'group', groupId: w.group, userId: w.uid[who] }, message: { type: 'text', text: prefix + text, mention: mentionees.length ? { mentionees } : undefined } });
       return client.lastReply();
@@ -79,9 +79,9 @@ export async function makeWorld({ now = new Date('2026-11-16T02:00:00Z'), link =
   };
   if (link) {
     // Real order: the admin links, sets the team group, then the others link.
-    await w.dm('Jai', 'ฉันคือ Jai');
-    await w.say('Jai', 'ใช้กลุ่มนี้');
-    for (const n of ['Best', 'Bonnie']) await w.dm(n, `ฉันคือ ${n}`);
+    await w.dm('Jai', 'I am Jai');
+    await w.say('Jai', 'use this group');
+    for (const n of ['Best', 'Kiak']) await w.dm(n, `I am ${n}`);
   }
   client.replies.length = 0;
   return w;

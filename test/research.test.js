@@ -56,21 +56,20 @@ test('sync fills research/summary, records lastSync, explains a sharing problem'
   assert.equal((await store.get('research/config')).target, 100, 'settings kept');
   fail = true;
   await research.sync();
-  assert.match((await store.get('research/config')).lastError, /แชร์ชีตให้ norse-bot/);
-  // Monday line: survey progress and interviews
-  await store.write({ op: 'set', path: 'interviews/i1', data: { code: 'P01', status: 'done' } });
-  assert.equal(await research.progressLine('2026-11-16', '2026-11-10'), 'แบบสอบถาม 4/100 (+4 ใน 7 วัน) · สัมภาษณ์ 1/20');
-  // what Norse knows for "@Norse สรุปผลแบบสอบถาม"
+  assert.match((await store.get('research/config')).lastError, /share it with delta-edu-bot/);
+  // Monday line: feedback form progress
+  assert.equal(await research.progressLine('2026-11-16', '2026-11-10'), 'Feedback form: 4/100 responses (+4 in 7 days)');
+  // what Delta knows for "@Delta sum up the feedback form"
   const k = buildKnowledge((await store.snapshot()).docs);
-  assert.match(k, /Google Form survey: 4 responses/);
+  assert.match(k, /Feedback form: 4 responses/);
   assert.match(k, /1\. อายุ \(4 answers\): 20–29 ปี 75%/);
   assert.ok(!k.includes('0812345678'));
 });
 
-test('Monday post includes the research line', async () => {
+test('Monday post includes the feedback form line', async () => {
   const w = await makeWorld();
-  w.scheduler.research = { progressLine: async () => 'แบบสอบถาม 65/100 (+12 ใน 7 วัน) · สัมภาษณ์ 3/20', sync: async () => ({}) };
+  w.scheduler.research = { progressLine: async () => 'Feedback form: 65/100 responses (+12 in 7 days)', sync: async () => ({}) };
   await w.scheduler.tick({ now: new Date('2026-11-16T02:00:00Z'), force: 'monday' });
-  assert.match(flat(w.client.pushes.at(-1)), /รีเสิร์ช/);
-  assert.match(flat(w.client.pushes.at(-1)), /แบบสอบถาม 65\/100/);
+  assert.match(flat(w.client.pushes.at(-1)), /📋 Feedback/);
+  assert.match(flat(w.client.pushes.at(-1)), /Feedback form: 65\/100/);
 });

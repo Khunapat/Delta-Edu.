@@ -8,14 +8,14 @@ import { makeWorld, flat, postbacks } from './helpers.js';
 import { forAi, transcode } from '../src/media.js';
 
 const AI_MEETING = {
-  is_meeting: true, title: 'ประชุมเลือกแพ็กเกจ', date_text: '', attendees: ['เจ', 'บอนนี่', 'นน'],
-  summary: 'คุยเรื่องแบบที่จะทำต่อและ supplier',
-  decisions: ['เลือก Pocket Press Slim ทำต่อ'],
+  is_meeting: true, title: 'Thermo I launch', date_text: '', attendees: ['J', 'Kiakky', 'Pim'],
+  summary: 'Planned the first Thermodynamics I cohort.',
+  decisions: ['Start Thermo I in January'],
   action_items: [
-    { title: 'ทำ mockup Pocket Press Slim', owners: ['บอนนี่'], due_text: 'ศุกร์', due_date: '2026-11-20' },
-    { title: 'โทรถาม supplier 3 เจ้า', owners: ['เบสท์'], due_text: 'พรุ่งนี้', due_date: '2026-11-17' },
+    { title: 'Thermo I lesson 1 slides', owners: ['Kiakky'], due_text: 'friday', due_date: '2026-11-20' },
+    { title: 'Post the class schedule', owners: ['Best'], due_text: 'tomorrow', due_date: '2026-11-17' },
   ],
-  open_questions: ['ต้นทุนต่อชิ้นเท่าไหร่'],
+  open_questions: ['What is the class price?'],
 };
 const media = (w, who, kind, id = 'm1', where = 'direct') => w.bot.handle({
   type: 'message', replyToken: 'r',
@@ -26,39 +26,40 @@ const media = (w, who, kind, id = 'm1', where = 'direct') => w.bot.handle({
 test('typed meeting notes -> meeting card + task cards; save puts it on the board, confirm makes the tasks', async () => {
   const w = await makeWorld();
   w.provider.next(AI_MEETING);
-  const r = await w.dm('Jai', 'บันทึกประชุม: ตกลงเลือก Pocket Press Slim บอนนี่ทำ mockup ส่งศุกร์ นนโทรหา supplier พรุ่งนี้ ต้นทุนยังไม่รู้');
+  const r = await w.dm('Jai', 'meeting notes: agreed to start Thermo I in January. Kiak does lesson 1 slides by friday, Best posts the schedule tomorrow. Price still open.');
   const call = w.provider.calls.at(-1);
   assert.ok(call.schema.properties.is_meeting, 'meeting reader, not the chat reader');
-  assert.match(call.text, /ตกลงเลือก Pocket Press Slim/);
-  assert.match(r[0].altText, /^สรุปประชุม · รอบันทึก: ประชุมเลือกแพ็กเกจ/);
-  assert.match(flat(r[0]), /เลือก Pocket Press Slim ทำต่อ/);
-  assert.match(flat(r[0]), /Bonnie/, 'names mapped to the team list');
-  assert.match(r[1].altText, /งานใหม่รอยืนยัน: ทำ mockup Pocket Press Slim, โทรถาม supplier 3 เจ้า/);
+  assert.match(call.text, /agreed to start Thermo I/);
+  assert.match(call.system, /Always write in English/);
+  assert.match(r[0].altText, /^Meeting summary · to save: Thermo I launch/);
+  assert.match(flat(r[0]), /Start Thermo I in January/);
+  assert.match(flat(r[0]), /Kiak/, 'names mapped to the team list');
+  assert.match(r[1].altText, /New task to confirm: Thermo I lesson 1 slides, Post the class schedule/);
 
   const save = postbacks(r).find((d) => d.startsWith('a=mok'));
   const saved = await w.tap('Jai', save);
-  assert.match(saved[0].altText, /^บันทึกประชุมแล้ว/);
+  assert.match(saved[0].altText, /^Meeting saved/);
   const docs = (await w.store.snapshot()).docs;
   const meeting = Object.entries(docs).find(([p]) => p.startsWith('meetings/'))[1];
-  assert.equal(meeting.title, 'ประชุมเลือกแพ็กเกจ');
+  assert.equal(meeting.title, 'Thermo I launch');
   assert.equal(meeting.date, '2026-11-16');
-  assert.equal(meeting.attendees, 'Jai, Bonnie, นน', 'team names mapped; unknown spellings kept as written');
-  assert.equal(meeting.decisions, 'เลือก Pocket Press Slim ทำต่อ');
-  assert.match(meeting.actions, /^Bonnie: ทำ mockup Pocket Press Slim \(2026-11-20\)/);
-  assert.match(meeting.notes, /คำถามค้าง:\n- ต้นทุนต่อชิ้นเท่าไหร่/);
-  assert.match(flat(await w.tap('Jai', save)), /บันทึก\/ยกเลิกไปแล้ว/, 'second tap does nothing');
+  assert.equal(meeting.attendees, 'Jai, Kiak, Pim', 'team names mapped; unknown spellings kept as written');
+  assert.equal(meeting.decisions, 'Start Thermo I in January');
+  assert.match(meeting.actions, /^Kiak: Thermo I lesson 1 slides \(2026-11-20\)/);
+  assert.match(meeting.notes, /Open questions:\n- What is the class price\?/);
+  assert.match(flat(await w.tap('Jai', save)), /already saved or cancelled/, 'second tap does nothing');
 
   await w.tap('Jai', postbacks(r).find((d) => d.startsWith('a=dok')));
   const tasks = await w.team.tasks();
-  assert.equal(tasks.find((t) => t.title.startsWith('ทำ mockup')).owner, 'Bonnie');
-  assert.equal(tasks.find((t) => t.title.startsWith('ทำ mockup')).due, '2026-11-20');
-  assert.equal(tasks.find((t) => t.title.startsWith('โทรถาม')).owner, 'Best');
-  assert.equal(tasks.find((t) => t.title.startsWith('โทรถาม')).due, '2026-11-17');
+  assert.equal(tasks.find((t) => t.title.startsWith('Thermo I lesson')).owner, 'Kiak');
+  assert.equal(tasks.find((t) => t.title.startsWith('Thermo I lesson')).due, '2026-11-20');
+  assert.equal(tasks.find((t) => t.title.startsWith('Post the')).owner, 'Best');
+  assert.equal(tasks.find((t) => t.title.startsWith('Post the')).due, '2026-11-17');
 });
 
-test('group: "@Norse ประชุม" then a whiteboard photo from the same person; others are ignored', async () => {
+test('group: "@Delta meeting" then a whiteboard photo from the same person; others are ignored', async () => {
   const w = await makeWorld();
-  assert.match(flat(await w.say('Jai', 'ประชุม')), /ส่งโน้ตประชุมมาได้เลย/);
+  assert.match(flat(await w.say('Jai', 'meeting')), /Send the meeting notes/);
   const before = w.client.replies.length;
   await media(w, 'Best', 'image', 'img0', 'group');
   assert.equal(w.client.replies.length, before, "someone else's photo is just chat");
@@ -68,17 +69,17 @@ test('group: "@Norse ประชุม" then a whiteboard photo from the same p
   const part = w.provider.calls.at(-1).parts[0];
   assert.equal(part.inlineData.mimeType, 'image/jpeg');
   assert.equal(part.inlineData.data, Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64'));
-  assert.match(r[0].altText, /สรุปประชุม/);
+  assert.match(r[0].altText, /Meeting summary/);
   assert.equal(r.length, 1, 'no action items, no task cards');
 });
 
-test('1:1 photo without "ประชุม" gets a hint and no AI call; "not a meeting" is said plainly', async () => {
+test('1:1 photo without "meeting" gets a hint and no AI call; "not a meeting" is said plainly', async () => {
   const w = await makeWorld();
-  assert.match((await media(w, 'Jai', 'image'))[0].text, /พิมพ์ "ประชุม" ก่อน/);
+  assert.match((await media(w, 'Jai', 'image'))[0].text, /type "meeting" first/);
   assert.equal(w.provider.calls.length, 0);
-  await w.dm('Jai', 'ประชุม');
+  await w.dm('Jai', 'meeting');
   w.provider.next({ ...AI_MEETING, is_meeting: false, decisions: [], action_items: [], open_questions: [] });
-  assert.match(flat(await media(w, 'Jai', 'image')), /ดูไม่เหมือนโน้ตประชุม/);
+  assert.match(flat(await media(w, 'Jai', 'image')), /doesn't look like meeting notes/);
 });
 
 test('voice note: converted to Ogg/Opus for the AI (ffmpeg), falls back to the original', { skip: spawnSync('ffmpeg', ['-version']).status !== 0 && 'no ffmpeg here' }, async () => {
@@ -95,33 +96,33 @@ test('voice note: converted to Ogg/Opus for the AI (ffmpeg), falls back to the o
   assert.equal(fallback.mimeType, 'audio/mp4');
 
   const w = await makeWorld();
-  await w.dm('Bonnie', 'ประชุม');
+  await w.dm('Kiak', 'meeting');
   w.client.content = { v1: m4a };
   w.provider.next({ ...AI_MEETING, action_items: [] });
-  await media(w, 'Bonnie', 'audio', 'v1');
+  await media(w, 'Kiak', 'audio', 'v1');
   assert.equal(w.provider.calls.at(-1).parts[0].inlineData.mimeType, 'audio/ogg');
 });
 
 test('slow reading: an expired reply token turns into one push to the same chat', async () => {
   const w = await makeWorld();
-  await w.dm('Jai', 'ประชุม');
+  await w.dm('Jai', 'meeting');
   w.client.replyMessage = async () => { throw Object.assign(new Error('Invalid reply token'), { status: 400 }); };
   w.provider.next({ ...AI_MEETING, action_items: [] });
-  await w.bot.handle({ type: 'message', replyToken: 'old', source: { type: 'user', userId: 'Ujai' }, message: { type: 'text', text: 'คุยเรื่อง supplier ตกลงใช้เจ้าเดิม' } });
+  await w.bot.handle({ type: 'message', replyToken: 'old', source: { type: 'user', userId: 'Ujai' }, message: { type: 'text', text: 'talked about the SAT launch, we keep the same price' } });
   const p = w.client.pushes.at(-1);
   assert.equal(p.to, 'Ujai');
-  assert.match(p.messages[0].altText, /สรุปประชุม/);
+  assert.match(p.messages[0].altText, /Meeting summary/);
 });
 
-test('group: after "@Norse ประชุม", plain chat stays chat; "@Norse <notes>" is the notes', async () => {
+test('group: after "@Delta meeting", plain chat stays chat; "@Delta <notes>" is the notes', async () => {
   const w = await makeWorld();
-  await w.say('Jai', 'ประชุม');
+  await w.say('Jai', 'meeting');
   const before = w.client.replies.length;
-  await w.say('Jai', 'กินข้าวกันยัง', false);
+  await w.say('Jai', 'lunch anyone?', false);
   assert.equal(w.client.replies.length, before, 'normal chat ignored');
   assert.equal(w.provider.calls.length, 0, 'no AI spent');
   w.provider.next({ ...AI_MEETING, action_items: [] });
-  const r = await w.say('Jai', 'ตกลงว่าจะใช้ Pocket Press Slim');
+  const r = await w.say('Jai', 'we agreed to open IGCSE Physics in December');
   assert.ok(w.provider.calls.at(-1).schema.properties.is_meeting, 'read as meeting notes');
-  assert.match(r[0].altText, /สรุปประชุม/);
+  assert.match(r[0].altText, /Meeting summary/);
 });

@@ -32,7 +32,7 @@ export class Ai {
 
   get enabled() { return !!this.provider; }
   get models() { return this.provider?.models || []; }
-  get label() { return this.provider?.label || 'AI ปิดอยู่'; }
+  get label() { return this.provider?.label || 'AI off'; }
 
   /** All configured models have hit their daily quota today. */
   async resting(now = new Date()) {
@@ -61,11 +61,11 @@ export class Ai {
   }
 
   restingText(err, now = new Date()) {
-    if (err instanceof AiOff) return 'ยังไม่ได้ใส่ key ของ AI เลยตอบประโยคยาวๆ ไม่ได้ แต่ปุ่มกับคำสั่ง งานฉัน / งานทีม ยังใช้ได้นะ';
+    if (err instanceof AiOff) return 'No AI key is set, so I can\'t read free-form messages. Buttons and commands (my tasks, team, classes) still work.';
     if (err?.resetAt && err.daily !== false) {
-      return `AI พักอยู่ (โควตาฟรีวันนี้หมดแล้ว) กลับมา ${describeReset(err.resetAt, this.tz, now)} 😴\nระหว่างนี้ปุ่มกับคำสั่ง งานฉัน / งานทีม / เสร็จแล้ว ยังใช้ได้ปกติ`;
+      return `The AI is resting (today\'s free quota is used up). It\'s back ${describeReset(err.resetAt, this.tz, now)} 😴\nButtons and commands (my tasks, team, classes, done) still work.`;
     }
-    return 'AI คิวแน่นอยู่ ลองพิมพ์ใหม่อีกสักครู่นะ (ปุ่มกับคำสั่งสั้นๆ ยังใช้ได้)';
+    return 'The AI is busy. Try again in a minute (buttons and short commands still work).';
   }
 }
 

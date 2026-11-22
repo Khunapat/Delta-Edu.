@@ -10,21 +10,21 @@ const walk = (n, fn) => { if (n && typeof n === 'object') { fn(n); for (const v 
 
 test('banners appear only when the public https address is known', () => {
   F.setAssetBase('');
-  const plain = F.digestMessages({ greeting: 'อรุณสวัสดิ์', today: '2026-11-16', sections: [], actionable: [] })[0];
+  const plain = F.digestMessages({ greeting: 'Good morning', today: '2026-11-16', sections: [], actionable: [] })[0];
   assert.equal(plain.contents.hero, undefined);
   assert.ok(plain.contents.header, 'gradient header instead');
-  F.setAssetBase('https://norse-bot-abc.a.run.app', 'v9');
-  const withPic = F.digestMessages({ greeting: 'อรุณสวัสดิ์', today: '2026-11-16', sections: [], actionable: [] })[0];
+  F.setAssetBase('https://delta-edu-bot-abc.a.run.app', 'v9');
+  const withPic = F.digestMessages({ greeting: 'Good morning', today: '2026-11-16', sections: [], actionable: [] })[0];
   assert.deepEqual(
     [withPic.contents.hero.type, withPic.contents.hero.animated, withPic.contents.hero.url],
-    ['image', true, 'https://norse-bot-abc.a.run.app/brand/banner-morning.png?v=v9'],
+    ['image', true, 'https://delta-edu-bot-abc.a.run.app/brand/banner-morning.png?v=v9'],
   );
   assert.equal(withPic.contents.header, undefined, 'title moves under the banner');
   F.setAssetBase('');
 });
 
 test('every card fits LINE limits: alt text, bubble size, https images, button labels', () => {
-  F.setAssetBase('https://norse-bot-abc.a.run.app', 'v1');
+  F.setAssetBase('https://delta-edu-bot-abc.a.run.app', 'v1');
   for (const s of samples()) {
     for (const m of s.messages.flat()) {
       if (m.type !== 'flex') continue;
@@ -64,8 +64,8 @@ test('server learns its public address from Cloud Run requests and serves the ba
   try {
     await fetch(base + '/', { headers: { host: 'localhost' } });
     assert.equal(F.assetBase(), '', 'not from a local host');
-    await fetch(base + '/', { headers: { 'x-forwarded-host': 'norse-bot-abc.a.run.app' } });
-    assert.equal(F.assetBase(), 'https://norse-bot-abc.a.run.app');
+    await fetch(base + '/', { headers: { 'x-forwarded-host': 'delta-edu-bot-abc.a.run.app' } });
+    assert.equal(F.assetBase(), 'https://delta-edu-bot-abc.a.run.app');
     const r = await fetch(base + '/brand/banner-done.png');
     assert.equal(r.status, 200);
     assert.match(r.headers.get('content-type'), /png/);

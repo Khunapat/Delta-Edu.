@@ -55,5 +55,5 @@ function defaultSleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Thai text shown to the user when the AI is rate-limited. */
-export const QUOTA_MESSAGE = 'ตอนนี้ AI ติดลิมิตชั่วคราว 😅 ลองใหม่อีกสักครู่นะ (ปุ่มกับคำสั่งสั้นๆ ยังใช้ได้)';
+/** Text shown to the user when the AI is rate-limited. */
+export const QUOTA_MESSAGE = 'The AI hit its limit for a moment 😅 Try again shortly (buttons and short commands still work).';

@@ -15,26 +15,17 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'board');
 const BRAND = join(ROOT, '..', 'brand');
 
-// The page was written for claude.ai and emails. Here, people are told in LINE.
-export const PAGE_TEXT = [
-  ['" แล้ว · จะส่งอีเมลแจ้ง"', '" แล้ว · Norse จะแจ้งใน LINE"'],
-  ['"Task added · จะส่งอีเมลแจ้งผู้รับผิดชอบ"', '"Task added · Norse แจ้งผู้รับผิดชอบใน LINE"'],
-  ['"คนที่ถูกเพิ่มใหม่จะได้อีเมลแจ้งจาก NORSE ว่ามีงานนี้ในรอบส่งถัดไป ส่วนอีเมลเตือนก่อนครบกำหนด (5, 3, 1 วัน) เปิดได้ที่ช่อง Email reminders"',
-    '"คนที่ถูกเพิ่มจะได้ข้อความจาก Norse ใน LINE (วันละไม่เกิน 1 ครั้ง) และทุกงานมีเตือนก่อนครบกำหนด 5, 3, 1 วัน"'],
-  ['"ไม่มีอีเมลในหน้า Team"', '""'],
-  ['"✉️ คนที่เพิ่มใหม่จะได้อีเมลแจ้งจาก NORSE ว่ามีงานนี้ (ส่งรอบถัดไป ภายในประมาณ 1 ชั่วโมง)"', '"💬 คนที่เพิ่มใหม่จะได้ข้อความจาก Norse ใน LINE"'],
-  ['field("Email reminders",iNotify), ', ''],
-  ['"🔔 Email reminders: new, 5, 3, 1 days before"', '"🔔 LINE reminders"'],
-  ['"Sign in to claude.ai with access to this board to see your team\'s tasks."', '"เปิดบอร์ดจากเมนู Norse ใน LINE เพื่อเข้าสู่ระบบ"'],
-];
+// Text swaps for the page (it is written for LINE already, so none are needed now;
+// kept so a future page from elsewhere can be adapted without code changes).
+export const PAGE_TEXT = [];
 
-const LOGO_AT = '<b>NORSE</b></div>';
+const LOGO_AT = '<b>DELTA_EDU</b></div>';
 const LOGO_CSS = '<link rel="icon" href="/brand/icon.svg" type="image/svg+xml">\n'
-  + '<style>.logo b.norse-wm{display:flex;align-items:center;line-height:0}.logo b.norse-wm svg{height:17px;width:auto;color:var(--ink)}</style>\n';
+  + '<style>.logo b.delta-wm{display:flex;align-items:center;line-height:0}.logo b.delta-wm svg{height:20px;width:auto}</style>\n';
 
 /**
- * The dashboard HTML with our runtime added before its own script, email wording
- * swapped for LINE, and the NORSE wordmark (brand/norse-logo.svg) in the sidebar.
+ * The board HTML with our runtime added before its own script, and the δelta Edu.
+ * wordmark (brand/delta-logo.svg) in the sidebar.
  */
 export function preparePage(html, { liffId = '', logoSvg = '' } = {}) {
   const missing = [];
@@ -43,11 +34,11 @@ export function preparePage(html, { liffId = '', logoSvg = '' } = {}) {
     else missing.push(from.slice(0, 50));
   }
   if (logoSvg) {
-    if (html.includes(LOGO_AT)) html = html.replace(LOGO_AT, `<b class="norse-wm">${logoSvg.trim()}</b></div>`);
+    if (html.includes(LOGO_AT)) html = html.replace(LOGO_AT, `<b class="delta-wm">${logoSvg.trim()}</b></div>`);
     else missing.push(LOGO_AT);
     html = html.replace('</head>', LOGO_CSS + '</head>');
   }
-  const inject = `<script>window.NORSE_BOARD=${JSON.stringify({ liffId })};</script>\n`
+  const inject = `<script>window.DELTA_BOARD=${JSON.stringify({ liffId })};</script>\n`
     + (liffId ? '<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>\n' : '')
     + '<script src="/board/client.js"></script>\n';
   const at = html.indexOf('\n<script>');
@@ -61,7 +52,7 @@ export function boardRouter({ store, auth, init, onChange = async () => {}, liff
   const loadPage = () => {
     if (page) return page;
     if (!existsSync(pageFile)) return null;
-    const logoSvg = existsSync(join(BRAND, 'norse-logo.svg')) ? readFileSync(join(BRAND, 'norse-logo.svg'), 'utf8') : '';
+    const logoSvg = existsSync(join(BRAND, 'delta-logo.svg')) ? readFileSync(join(BRAND, 'delta-logo.svg'), 'utf8') : '';
     const out = preparePage(readFileSync(pageFile, 'utf8'), { liffId, logoSvg });
     if (out.missing.length) console.warn('board page: text not found (page changed?):', out.missing.join(' | '));
     page = out.html;
@@ -79,7 +70,7 @@ export function boardRouter({ store, auth, init, onChange = async () => {}, liff
   const api = express.Router();
   api.use(express.json({ limit: '1mb' }));
   api.use(async (_req, res, next) => {
-    try { await init(); next(); } catch (err) { console.error('board init failed', err?.message || err); res.status(503).json({ error: 'ระบบยังเปิดชีตไม่ได้ ลองใหม่อีกสักครู่' }); }
+    try { await init(); next(); } catch (err) { console.error('board init failed', err?.message || err); res.status(503).json({ error: "Can't open the Sheet yet. Try again in a minute." }); }
   });
 
   api.post('/login', async (req, res) => {
@@ -87,14 +78,14 @@ export function boardRouter({ store, auth, init, onChange = async () => {}, liff
       const { cookie, member } = await auth.login(req.body?.idToken);
       res.set('Set-Cookie', auth.cookieHeader(cookie)).json({ member: publicMember(member) });
     } catch (err) {
-      res.status(err.status || 500).json({ error: err.status ? err.message : 'เข้าสู่ระบบไม่สำเร็จ' });
+      res.status(err.status || 500).json({ error: err.status ? err.message : 'Sign-in failed' });
     }
   });
   api.post('/logout', (_req, res) => res.set('Set-Cookie', auth.cookieHeader('', { clear: true })).json({ ok: true }));
 
   const signedIn = async (req, res, next) => {
     const member = await auth.member(req).catch(() => null);
-    if (!member) return res.status(401).json({ error: 'ยังไม่ได้เข้าสู่ระบบ' });
+    if (!member) return res.status(401).json({ error: 'Not signed in' });
     req.member = member;
     next();
   };
@@ -110,7 +101,7 @@ export function boardRouter({ store, auth, init, onChange = async () => {}, liff
       res.json({ docs, etag });
     } catch (err) {
       console.error('board data failed', err?.message || err);
-      res.status(500).json({ error: 'อ่านข้อมูลไม่สำเร็จ' });
+      res.status(500).json({ error: 'Could not read the data' });
     }
   });
 
@@ -123,7 +114,7 @@ export function boardRouter({ store, auth, init, onChange = async () => {}, liff
       res.json({ ok: true, doc: out.after });
     } catch (err) {
       if (!err.status) console.error('board write failed', err?.message || err);
-      res.status(err.status || 500).json({ error: err.status ? err.message : 'บันทึกไม่สำเร็จ' });
+      res.status(err.status || 500).json({ error: err.status ? err.message : 'Could not save' });
     }
   });
 

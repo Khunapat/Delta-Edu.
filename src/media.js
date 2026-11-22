@@ -17,7 +17,7 @@ export const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
  * ffmpeg cannot read from a pipe.
  */
 export async function transcode(buf, args, { timeoutMs = 60_000, bin = 'ffmpeg' } = {}) {
-  const dir = await mkdtemp(join(tmpdir(), 'norse-'));
+  const dir = await mkdtemp(join(tmpdir(), 'delta-'));
   const input = join(dir, 'in');
   try {
     await writeFile(input, buf);

@@ -152,7 +152,7 @@ export class Line {
 }
 
 /**
- * Text with @mentions: mentionText('{a} ช่วยดูหน่อย', { a: { uid, name } }).
+ * Text with @mentions: mentionText('{a} can you take a look?', { a: { uid, name } }).
  * People without a linked LINE id are written as their nickname instead.
  */
 export function mentionText(text, users) {

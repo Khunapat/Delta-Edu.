@@ -10,7 +10,7 @@ import * as F from '../src/flex.js';
 import { render, esc } from './cards/emulate.mjs';
 
 const brand = join(dirname(fileURLToPath(import.meta.url)), '..', 'brand');
-F.setAssetBase('https://norse.local', 'preview');
+F.setAssetBase('https://delta.local', 'preview');
 const { samples } = await import('./cards/samples.mjs');
 const embed = (url) => {
   const m = /\/brand\/([a-z0-9-]+\.png)/.exec(url);
@@ -18,7 +18,7 @@ const embed = (url) => {
 };
 
 const sections = samples().map((s) => `<h3>${esc(s.title)}</h3>${s.you ? `<div class="you">${esc(s.you)}</div>` : ''}${s.messages.flat().map((m) => render(m, { urlFor: embed })).join('')}`);
-console.log(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Norse cards</title>
+console.log(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Delta cards</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;700&display=swap" rel="stylesheet"><style>
 body{margin:0;padding:24px;background:#0b0f10;color:#e7efed;font-family:"Noto Sans Thai",system-ui,sans-serif}
 h3{color:#8c9a98;font-weight:600;font-size:13px;margin:28px 0 8px}

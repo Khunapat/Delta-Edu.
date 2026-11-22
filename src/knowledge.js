@@ -1,8 +1,9 @@
-// What Norse knows about NORSE beyond the task list, for questions like
-// "@Norse ซัพพลายเออร์เจ้าไหนถูกสุด" or "@Norse vision ของเราคืออะไร".
-//   1. knowledge/norse.md: the basics, always included (edit to teach Norse more)
-//   2. the web board's documents: brand, canvas, interviews, product roadmap,
-//      suppliers, budget, meetings, competitors, marketing, research summary
+// What Delta knows about δelta Edu. beyond the task list, for questions like
+// "@Delta when is the next Thermo I class?" or "@Delta what did we decide about refunds?".
+//   1. knowledge/delta-edu.md: the public basics, always included (edit to teach Delta more)
+//   2. the web board's documents (private, in the Sheet): team notes, decisions,
+//      upcoming classes, meetings, feedback form summary
+// The tutor pay ladder (settings/pay) is never sent: the bot computes pay itself.
 // Privacy rule: no phone numbers or emails ever go to the AI. Contact fields are
 // dropped and anything that looks like a phone number or email is masked.
 
@@ -10,17 +11,13 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'knowledge', 'norse.md');
+const FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'knowledge', 'delta-edu.md');
 
 // Board collections worth knowing, in order of usefulness, with a label for the AI.
 const COLLECTIONS = [
-  ['meetings', 'Meetings & decisions'],
-  ['interviews', 'Interview notes (participant codes, not names)'],
-  ['competitors', 'Competitors'],
-  ['suppliers', 'Suppliers'],
-  ['features', 'Product roadmap / ideas'],
-  ['marketing', 'Marketing'],
-  ['expenses', 'Budget & costs'],
+  ['notes', 'Team notes (private, written by the team)'],
+  ['decisions', 'Decisions (status open = not agreed yet; agreed = final)'],
+  ['meetings', 'Meetings'],
 ];
 // Never sent: who to call and how. (contacts/* is skipped as a whole.)
 const PRIVATE_KEYS = /^(email|e-?mail|phone|tel|mobile|line|lineid|line_id|contact|address|customer)$/i;
@@ -59,7 +56,7 @@ function flattenText(obj, depth = 0, out = []) {
 
 /** Survey summary in a few lines: totals, then each question's top answers. */
 export function researchText(s) {
-  const lines = [`Google Form survey: ${Number(s.total) || 0} responses${s.updatedAt ? ` (synced ${String(s.updatedAt).slice(0, 10)})` : ''}.`];
+  const lines = [`Feedback form: ${Number(s.total) || 0} responses${s.updatedAt ? ` (synced ${String(s.updatedAt).slice(0, 10)})` : ''}.`];
   for (const q of (Array.isArray(s.questions) ? s.questions : []).slice(0, 20)) {
     let a = '';
     if (q.type === 'choice' || q.type === 'multi') {
@@ -78,21 +75,19 @@ export function baseKnowledge() {
 }
 
 /** Text for the AI from the board's documents (path -> data). `max` caps the size. */
-export function buildKnowledge(docs = {}, { max = 9000 } = {}) {
+export function buildKnowledge(docs = {}, { max = 9000, today = '' } = {}) {
   const parts = [];
   const base = baseKnowledge();
-  if (base) parts.push(`NORSE basics:\n${base}`);
-  const brand = docs['meta/brand'];
-  if (brand) parts.push(`Brand (vision, mission, values):\n${flattenText(brand).join(' · ').slice(0, 1200)}`);
-  const bmc = docs['bmc/main']?.blocks;
-  if (bmc && typeof bmc === 'object') {
-    const rows = Object.entries(bmc).map(([k, notes]) => `${k}: ${(Array.isArray(notes) ? notes : []).map((n) => scrub(n?.text || '')).filter(Boolean).join('; ')}`).filter((r) => !r.endsWith(': '));
-    if (rows.length) parts.push(`Business model canvas:\n${rows.join('\n')}`);
+  if (base) parts.push(`δelta Edu. basics:\n${base}`);
+  const classes = Object.entries(docs).filter(([p, d]) => p.startsWith('classes/') && d?.date && d.status !== 'cancelled' && (!today || d.date >= today))
+    .map(([, d]) => d).sort((a, b) => `${a.date} ${a.time || ''}`.localeCompare(`${b.date} ${b.time || ''}`));
+  if (classes.length) {
+    parts.push(`Upcoming classes (${classes.length}):\n${classes.slice(0, 25).map((c) => `- ${c.date} ${c.time || ''} ${scrub(c.course || '')} (${c.brand || '-'}) tutor ${c.tutor || '?'}${c.students ? `, ${c.students} students` : ''}`.replace(/\s+/g, ' ')).join('\n')}`);
   }
   const research = docs['research/summary'];
   if (research) parts.push(researchText(research));
   for (const [coll, label] of COLLECTIONS) {
-    const rows = Object.entries(docs).filter(([p]) => p.split('/')[0] === coll).map(([, d]) => line(d)).filter(Boolean);
+    const rows = Object.entries(docs).filter(([p]) => p.split('/')[0] === coll).map(([, d]) => line(d, coll === 'notes' ? 1500 : 320)).filter(Boolean);
     if (rows.length) parts.push(`${label} (${rows.length}):\n${rows.slice(0, 25).map((r) => '- ' + r).join('\n')}`);
   }
   let text = parts.join('\n\n');

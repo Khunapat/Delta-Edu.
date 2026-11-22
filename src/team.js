@@ -6,12 +6,27 @@ import { randomBytes } from 'node:crypto';
 import { normalizeDate, todayKey } from './dates.js';
 
 export const STATUSES = ['todo', 'doing', 'blocked', 'done'];
-export const STATUS_TH = { todo: 'ยังไม่เริ่ม', doing: 'กำลังทำ', blocked: 'ติดอยู่', done: 'เสร็จแล้ว' };
+export const STATUS_LABEL = { todo: 'To do', doing: 'Doing', blocked: 'Blocked', done: 'Done' };
 export const PRIORITIES = ['high', 'med', 'low'];
+
+// δelta Edu. has two brands: δelta Edu. (university, "Uni") and δelta Edu. LITE
+// (international secondary: SAT, GED, IGCSE, A-Level). A task's "stream" column
+// holds its brand tag; team-wide work is "Both".
+export const BRANDS = ['Uni', 'LITE', 'Both'];
+export const DEFAULT_BRAND = 'Both';
+/** "uni" / "university" / "thermo" -> Uni, "lite" / "sat" / "igcse" -> LITE, "both" -> Both; '' when unclear. */
+export function normBrand(s) {
+  const v = String(s || '').trim().toLowerCase();
+  if (!v) return '';
+  if (/^(both|all|general|team|ทั้งสอง)$/.test(v)) return 'Both';
+  if (/\blite\b|\bsat\b|\bged\b|igcse|a-?level|high ?school|secondary|มัธยม/.test(v)) return 'LITE';
+  if (/^uni$|universit|\bdelta( edu\.?)?$|δelta|thermo|chem(ical)? eng|\bche\b|calculus|มหาลัย|มหาวิทยาลัย/.test(v)) return 'Uni';
+  return '';
+}
 
 export const newId = () => randomBytes(6).toString('base64url').replace(/[-_]/g, 'x').toLowerCase();
 
-const HONORIFIC = /^(พี่|น้อง|คุณ|p'|p\.|k\.|khun)\s*/i;
+const HONORIFIC = /^(พี่|น้อง|คุณ|p'|p\.|k\.|khun|kru|ครู)\s*/i;
 export function normName(s) {
   return String(s || '').trim().replace(/^@/, '').replace(HONORIFIC, '').replace(/\s+/g, '').toLowerCase();
 }
@@ -41,7 +56,7 @@ export class Team {
     if (!n) return null;
     return (await this.members()).find((m) => normName(m.nickname) === n || m.aliases.some((a) => normName(a) === n)) || null;
   }
-  /** First start only. Each entry: "Nick[/alias/alias][:role]", e.g. "Bonnie/บอนนี่" or "Jai/เจ:admin". */
+  /** First start only. Each entry: "Nick[/alias/alias][:role]", e.g. "Best:founder" or "Jai/เจ:admin". */
   async seedMembers(seed) {
     if (!seed?.length || (await this.members()).length) return 0;
     const rows = seed.map((s) => {
@@ -73,16 +88,17 @@ export class Team {
       priority: PRIORITIES.includes(t.priority) ? t.priority : 'med',
       due: normalizeDate(t.due),
       start: normalizeDate(t.start),
-      stream: t.stream || 'General',
+      stream: t.stream || DEFAULT_BRAND,
     }));
   }
   async task(id) { return (await this.tasks()).find((t) => t.id === id) || null; }
   async openTasksOf(nickname) {
     return (await this.tasks()).filter((t) => t.status !== 'done' && ownersOf(t).includes(nickname)).sort(byDue);
   }
+  /** Brand tags in use: Uni, LITE, Both first, then any others people typed. */
   async streams() {
-    const set = new Set((await this.tasks()).map((t) => t.stream).filter(Boolean));
-    return [...set].sort((a, b) => a.localeCompare(b));
+    const set = new Set([...BRANDS, ...(await this.tasks()).map((t) => t.stream).filter(Boolean)]);
+    return [...BRANDS, ...[...set].filter((s) => !BRANDS.includes(s)).sort((a, b) => a.localeCompare(b))];
   }
 
   async createTasks(drafts, by, source = 'line') {
@@ -91,7 +107,7 @@ export class Team {
       id: newId(),
       title: d.title.trim(),
       owner: d.owners.join(', '),
-      stream: d.stream || 'General',
+      stream: d.stream || DEFAULT_BRAND,
       status: 'todo',
       priority: PRIORITIES.includes(d.priority) ? d.priority : 'med',
       start: d.start || this.today(),

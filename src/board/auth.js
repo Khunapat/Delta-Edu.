@@ -7,7 +7,7 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-export const COOKIE = 'norse_board';
+export const COOKIE = 'delta_board';
 const DAY = 86400_000;
 
 export class BoardAuth {
@@ -43,11 +43,11 @@ export class BoardAuth {
 
   /** ID token from LIFF -> { cookie, member } or throws with a status and a Thai message. */
   async login(idToken) {
-    if (!this.ready) throw err(503, 'ยังไม่ได้ตั้งค่า LINE Login ของบอร์ด');
-    if (!idToken) throw err(400, 'ไม่มี token จาก LINE');
+    if (!this.ready) throw err(503, "The board's LINE Login is not set up yet");
+    if (!idToken) throw err(400, 'No token from LINE');
     const claims = await this.verifyToken(idToken);
     const member = await this.team.memberByUserId(claims?.sub);
-    if (!member) throw err(403, 'บอร์ดนี้ใช้ได้เฉพาะทีม NORSE ที่เชื่อม LINE กับ Norse แล้ว (พิมพ์ "ฉันคือ <ชื่อเล่น>" ในแชทกับ Norse ก่อน)');
+    if (!member) throw err(403, 'This board is for the δelta Edu. team only, linked to Delta in LINE (send "I am <nickname>" in your chat with Delta first)');
     const cookie = this.sign({ uid: member.line_user_id, nick: member.nickname, exp: this.now() + this.ttl });
     return { cookie, member };
   }
@@ -81,7 +81,7 @@ async function verifyWithLine(idToken, channelId) {
     body: new URLSearchParams({ id_token: idToken, client_id: channelId }),
   });
   const body = await r.json().catch(() => ({}));
-  if (!r.ok || !body.sub) throw err(401, 'LINE ยืนยันตัวตนไม่ผ่าน ลองเปิดบอร์ดใหม่');
+  if (!r.ok || !body.sub) throw err(401, 'LINE sign-in failed. Open the board again.');
   return body;
 }
 

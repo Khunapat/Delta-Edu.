@@ -20,12 +20,12 @@ const team = new Team(db, { timeZone: cfg.timeZone });
 const line = new Line({ token: cfg.line.channelAccessToken, db, monthlyLimit: cfg.pushMonthlyLimit, timeZone: cfg.timeZone });
 const ai = new Ai({ cfg, db });
 const store = new BoardStore({ db, team });
-// What Norse knows for questions: knowledge/norse.md + the web board's notes (cached a minute).
+// What Delta knows for questions: knowledge/delta-edu.md + the web board's documents (cached a minute).
 let known = { at: 0, text: '' };
 async function knowledge() {
   if (Date.now() - known.at < 60_000) return known.text;
   const { docs } = await store.snapshot();
-  known = { at: Date.now(), text: buildKnowledge(docs) };
+  known = { at: Date.now(), text: buildKnowledge(docs, { today: team.today() }) };
   return known.text;
 }
 const bot = new Bot({ cfg, db, team, line, ai, knowledge, store });

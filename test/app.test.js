@@ -41,7 +41,7 @@ test('webhook: bad signature is refused; real events are handled', async () => {
   const s = await serve();
   try {
     assert.equal((await s.line({ events: [] }, 'wrong')).status, 401);
-    const ev = { type: 'message', source: { type: 'user', userId: 'U1' }, message: { type: 'text', text: 'งานฉัน' } };
+    const ev = { type: 'message', source: { type: 'user', userId: 'U1' }, message: { type: 'text', text: 'my tasks' } };
     assert.equal((await s.line({ events: [ev] })).status, 200);
     assert.equal(s.handled.length, 1);
   } finally { s.close(); }

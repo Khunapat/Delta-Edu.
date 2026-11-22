@@ -31,7 +31,7 @@ export function taskToDoc(row) {
   const extra = parseExtra(row.extra);
   return {
     ...extra,
-    title: row.title, owner: row.owner || 'Unassigned', stream: row.stream || 'General',
+    title: row.title, owner: row.owner || 'Unassigned', stream: row.stream || 'Both',
     status: STATUSES.has(row.status) ? row.status : 'todo', priority: PRIOS.has(row.priority) ? row.priority : 'med',
     start: normalizeDate(row.start), due: normalizeDate(row.due), blocker: row.blocker || '',
     notify: row.notify === '' ? false : yes(row.notify), created: row.created || '', updated: row.updated || '',
@@ -44,7 +44,7 @@ export function docToTaskCols(doc) {
   for (const [k, v] of Object.entries(doc)) if (!TASK_COLS.includes(k) && k !== 'id') extra[k] = v;
   const owner = str(doc.owner);
   return {
-    title: str(doc.title).slice(0, 200), owner: /^unassigned$/i.test(owner) ? '' : owner, stream: str(doc.stream) || 'General',
+    title: str(doc.title).slice(0, 200), owner: /^unassigned$/i.test(owner) ? '' : owner, stream: str(doc.stream) || 'Both',
     status: STATUSES.has(doc.status) ? doc.status : 'todo', priority: PRIOS.has(doc.priority) ? doc.priority : 'med',
     start: normalizeDate(doc.start), due: normalizeDate(doc.due), blocker: str(doc.blocker).slice(0, 300),
     notify: doc.notify === false ? 'no' : 'yes', created: str(doc.created), updated: str(doc.updated) || new Date().toISOString(),
@@ -53,13 +53,13 @@ export function docToTaskCols(doc) {
 }
 
 export function msToDoc(row) {
-  return { ...parseExtra(row.extra), title: row.title, date: normalizeDate(row.date), stream: row.stream || 'General', done: yes(row.done), updated: row.updated || '' };
+  return { ...parseExtra(row.extra), title: row.title, date: normalizeDate(row.date), stream: row.stream || 'Both', done: yes(row.done), updated: row.updated || '' };
 }
 export function docToMsCols(doc) {
   const extra = {};
   for (const [k, v] of Object.entries(doc)) if (!MS_COLS.includes(k) && k !== 'id') extra[k] = v;
   return {
-    title: str(doc.title).slice(0, 200), date: normalizeDate(doc.date), stream: str(doc.stream) || 'General', done: doc.done ? 'yes' : '',
+    title: str(doc.title).slice(0, 200), date: normalizeDate(doc.date), stream: str(doc.stream) || 'Both', done: doc.done ? 'yes' : '',
     updated: str(doc.updated) || new Date().toISOString(), extra: Object.keys(extra).length ? JSON.stringify(extra) : '',
   };
 }
@@ -89,6 +89,10 @@ export class BoardStore {
     }
     for (const [path, list] of parts) {
       try { docs[path] = JSON.parse(list.sort((a, b) => a[0] - b[0]).map((x) => x[1]).join('')); } catch { /* half-written: skip */ }
+    }
+    // Read-only team list (nickname, role, linked) for pickers: never LINE ids or contacts.
+    for (const m of members) {
+      docs[`members/m-${slug(m.nickname)}`] = { nickname: m.nickname, role: String(m.role || ''), admin: !!m.admin, linked: !!m.line_user_id };
     }
     // The Team page starts from the bot's member list until someone edits it.
     if (!Object.keys(docs).some((p) => p.startsWith('contacts/'))) {
@@ -125,6 +129,7 @@ export class BoardStore {
     if (!['set', 'update', 'delete'].includes(op)) throw httpError(400, 'bad op');
     if (op !== 'delete' && (typeof data !== 'object' || data === null || Array.isArray(data))) throw httpError(400, 'bad data');
     const [coll, id] = path.split('/');
+    if (coll === 'members') throw httpError(403, 'The team list comes from the Members tab in the Sheet');
     const before = await this.get(path);
     if (op === 'update' && !before) throw httpError(404, 'not found');
     const after = op === 'delete' ? null : op === 'update' ? deepMerge(before, data) : { ...data };

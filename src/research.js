@@ -117,12 +117,12 @@ export class Research {
     if (!id) return { skipped: 'no form sheet linked' };
     try {
       const summary = summarize(await this.readRows(id), { now: this.now() });
-      await this.store.write({ op: 'set', path: 'research/summary', data: summary }, { by: 'Norse' });
+      await this.store.write({ op: 'set', path: 'research/summary', data: summary }, { by: 'Delta' });
       await this.store.write({ op: 'update', path: 'research/config', data: { lastSync: summary.updatedAt, lastError: '' } });
       return { total: summary.total, questions: summary.questions.length };
     } catch (err) {
       const msg = /permission|403|404|not found/i.test(String(err?.message || err))
-        ? 'Norse อ่านชีตคำตอบไม่ได้: แชร์ชีตให้ norse-bot@…iam.gserviceaccount.com (Viewer)'
+        ? "Delta can't read the responses Sheet: share it with delta-edu-bot@…iam.gserviceaccount.com (Viewer)"
         : String(err?.message || err).slice(0, 200);
       await this.store.write({ op: 'update', path: 'research/config', data: { lastError: msg } }).catch(() => {});
       console.warn('research sync failed', err?.message || err);
@@ -130,21 +130,14 @@ export class Research {
     }
   }
 
-  /** One line for the Monday post: survey progress (+ the last 7 days) and interviews. */
+  /** One line for the Monday post: feedback form responses (+ the last 7 days). '' when no form is linked. */
   async progressLine(today, sinceKey) {
     const docs = (await this.store.snapshot()).docs;
     const s = docs['research/summary'];
+    if (!s) return '';
     const cfg = docs['research/config'] || {};
-    const target = Number(cfg.target) || 100;
-    const qTarget = Number(cfg.qualTarget) || 20;
-    const interviews = Object.entries(docs).filter(([p, d]) => p.startsWith('interviews/') && d?.status !== 'scheduled').length;
-    const done = Math.max(interviews, Number(docs['research/qual']?.done) || 0);
-    const parts = [];
-    if (s) {
-      const week = Object.entries(s.byDay || {}).filter(([d]) => d >= sinceKey && d <= today).reduce((n, [, c]) => n + c, 0);
-      parts.push(`แบบสอบถาม ${s.total}/${target}${week ? ` (+${week} ใน 7 วัน)` : ''}`);
-    }
-    parts.push(`สัมภาษณ์ ${done}/${qTarget}`);
-    return parts.join(' · ');
+    const target = Number(cfg.target) || 0;
+    const week = Object.entries(s.byDay || {}).filter(([d]) => d >= sinceKey && d <= today).reduce((n, [, c]) => n + c, 0);
+    return `Feedback form: ${s.total}${target ? `/${target}` : ''} responses${week ? ` (+${week} in 7 days)` : ''}`;
   }
 }

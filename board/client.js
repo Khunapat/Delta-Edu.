@@ -1,11 +1,11 @@
 // Runs in the browser before the dashboard's own script. The dashboard was built for
 // claude.ai and asks for window.claude.use("db") / use("user"); this gives it the same
-// small interface, backed by the Norse server and the team Sheet:
+// small interface, backed by the Delta server and the team Sheet:
 //   db.collection(name).onSnapshot / add / doc(id)      db.doc(path).onSnapshot / get / set / update / delete
-// Sign-in is LINE (LIFF). Only team members linked to Norse get in.
+// Sign-in is LINE (LIFF). Only team members linked to Delta get in.
 (function () {
   'use strict';
-  const CFG = window.NORSE_BOARD || {};
+  const CFG = window.DELTA_BOARD || {};
   const POLL_MS = 8000;
   let docs = {};            // path -> data
   let etag = '';
@@ -36,35 +36,35 @@
 
   // ---------- full-screen message (sign-in problems) ----------
   function overlay(title, text, { button } = {}) {
-    let el = document.getElementById('norse-overlay');
+    let el = document.getElementById('delta-overlay');
     if (!el) {
       el = document.createElement('div');
-      el.id = 'norse-overlay';
-      el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:#0C1112;color:#E7EFED;'
-        + 'font-family:"Noto Sans Thai","DM Sans",system-ui,sans-serif;padding:24px';
+      el.id = 'delta-overlay';
+      el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:#FDFCF4;color:#1F2A1D;'
+        + 'font-family:"Nunito",system-ui,sans-serif;padding:24px';
       document.body.appendChild(el);
     }
     el.innerHTML = '';
     const card = document.createElement('div');
-    card.style.cssText = 'max-width:420px;width:100%;background:#141B1D;border:1px solid #232E31;border-radius:20px;padding:28px;text-align:center';
+    card.style.cssText = 'max-width:420px;width:100%;background:#FFFFFF;border:1px solid #DCE6D6;border-radius:20px;padding:28px;text-align:center';
     const h = document.createElement('div'); h.textContent = title; h.style.cssText = 'font-size:20px;font-weight:700;margin-bottom:10px';
-    const p = document.createElement('div'); p.textContent = text; p.style.cssText = 'font-size:15px;color:#8C9A98;line-height:1.6';
+    const p = document.createElement('div'); p.textContent = text; p.style.cssText = 'font-size:15px;color:#5F6B5B;line-height:1.6';
     card.append(h, p);
     if (button) {
       const a = document.createElement('a'); a.textContent = button.label; a.href = button.href;
-      a.style.cssText = 'display:inline-block;margin-top:18px;background:#8FD9C6;color:#0C1715;font-weight:700;border-radius:999px;padding:10px 22px;text-decoration:none';
+      a.style.cssText = 'display:inline-block;margin-top:18px;background:#0B5C03;color:#FDFCF4;font-weight:700;border-radius:999px;padding:10px 22px;text-decoration:none';
       card.append(a);
     }
     el.append(card);
   }
-  const openInLine = () => (CFG.liffId ? { label: 'เปิดใน LINE', href: 'https://liff.line.me/' + CFG.liffId } : null);
+  const openInLine = () => (CFG.liffId ? { label: 'Open in LINE', href: 'https://liff.line.me/' + CFG.liffId } : null);
 
   // ---------- sign-in ----------
   async function signIn() {
     const r = await http('/api/board/me');
     if (r.ok) return r.body.member;
     if (!CFG.liffId || !window.liff) {
-      overlay('ยังเปิดบอร์ดไม่ได้', 'ยังไม่ได้ตั้งค่า LINE Login ของบอร์ด (LIFF) ให้ admin ทำตามขั้นตอนใน README');
+      overlay("The board can't open yet", "The board's LINE Login (LIFF) isn't set up. The admin follows the steps in the README.");
       return null;
     }
     await window.liff.init({ liffId: CFG.liffId });
@@ -74,14 +74,14 @@
     }
     const login = await http('/api/board/login', { method: 'POST', body: JSON.stringify({ idToken: window.liff.getIDToken() }) });
     if (login.ok) return login.body.member;
-    if (login.status === 401 && !sessionStorage.getItem('norse-relogin')) {
+    if (login.status === 401 && !sessionStorage.getItem('delta-relogin')) {
       // The LINE token was stale: sign in again once.
-      sessionStorage.setItem('norse-relogin', '1');
+      sessionStorage.setItem('delta-relogin', '1');
       window.liff.logout();
       window.liff.login({ redirectUri: location.href });
       return new Promise(() => {});
     }
-    overlay('เข้าบอร์ดไม่ได้', (login.body && login.body.error) || 'เข้าสู่ระบบไม่สำเร็จ', { button: openInLine() });
+    overlay("Can't open the board", (login.body && login.body.error) || 'Sign-in failed', { button: openInLine() });
     return null;
   }
 
@@ -127,7 +127,7 @@
     if (r.status === 304) return true;
     if (r.status === 401) {
       stopPolling();
-      overlay('หมดเวลาเข้าสู่ระบบ', 'เปิดบอร์ดใหม่จากเมนู Norse ใน LINE', { button: openInLine() });
+      overlay('Signed out', 'Open the board again from the Delta menu in LINE', { button: openInLine() });
       for (const l of listeners) l.err && l.err({ code: 'revoked' });
       return false;
     }
@@ -152,7 +152,7 @@
     setDocs(next); // show it now
     try {
       const r = await http('/api/board/write', { method: 'POST', body: JSON.stringify({ op, path, data }) });
-      if (!r.ok) throw Object.assign(new Error((r.body && r.body.error) || 'บันทึกไม่สำเร็จ'), { code: r.status === 401 ? 'revoked' : 'failed' });
+      if (!r.ok) throw Object.assign(new Error((r.body && r.body.error) || 'Could not save'), { code: r.status === 401 ? 'revoked' : 'failed' });
     } finally {
       pending--;
       etag = '';
@@ -188,7 +188,7 @@
         return db;
       } catch (err) {
         console.error(err);
-        overlay('เปิดบอร์ดไม่ได้', 'เชื่อมต่อไม่สำเร็จ ลองเปิดใหม่อีกครั้ง', { button: openInLine() });
+        overlay("Can't open the board", 'Could not connect. Try opening it again.', { button: openInLine() });
         return null;
       }
     })();

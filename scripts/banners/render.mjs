@@ -1,7 +1,10 @@
-// Capture the animated card banners into brand/banner-<name>.png (APNG, looping).
+// Capture the δelta Edu. animated card banners (banners.html) into brand/banner-<name>.png
+// (APNG, looping). The slab logo and the δ come from brand/delta-logo.svg via
+// scripts/brand/slab.mjs; the "Welcome" text uses Nunito (Google Fonts, sans-serif offline).
 //   node scripts/banners/render.mjs     (needs Playwright and the upng-js dev dependency)
 // LINE shows animated PNGs in cards (image component with animated: true) up to 300 KB.
 import { readFileSync, writeFileSync } from 'node:fs';
+import { C, slab, deltaGlyph } from '../brand/slab.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -15,12 +18,15 @@ const UPNG = require('upng-js');
 export const SCENES = ['morning', 'done', 'weekly', 'welcome'];
 const W = 800; const H = 300; const LOOP_MS = 3000; const FRAMES = 24; const LIMIT = 280 * 1024; // LINE allows 300 KB; keep a margin
 
-const logo = readFileSync(join(brand, 'norse-logo.svg'), 'utf8');
-const html = readFileSync(join(here, 'banners.html'), 'utf8').replaceAll('<!--LOGO-->', logo);
+const html = readFileSync(join(here, 'banners.html'), 'utf8')
+  .replaceAll('<!--SLAB-->', slab({ fill: C.cream, ink: C.dark, title: false }).svg())
+  .replaceAll('<!--SLAB_DARK-->', slab({ fill: C.dark, ink: C.cream, title: false }).svg())
+  .replaceAll('<!--DELTA-->', deltaGlyph(C.dark));
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
-await page.setContent(html);
+await page.setContent(html, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}); // offline: fallback font
+await page.evaluate(() => document.fonts.ready);
 for (const name of SCENES) {
   await page.evaluate((n) => { location.hash = n; }, name);
   await page.waitForTimeout(50);

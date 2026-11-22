@@ -61,7 +61,7 @@ export class Scheduler {
       if (!plan.items.length) continue;
       if ((await this.db.kvGet('lastpush:' + m.nickname, '')) === today) continue;
       const msgs = F.digestMessages({
-        greeting: `อรุณสวัสดิ์ ${m.nickname} ☀️`,
+        greeting: `Good morning ${m.nickname} ☀️`,
         today,
         sections: plan.sections,
         actionable: plan.actionable,
@@ -95,7 +95,7 @@ export class Scheduler {
       }).join(' ');
       return `• ${who} "${t.title}" ${relDays(diffDays(today, t.due))}`;
     });
-    const msg = mentionText(`เบาๆ นะ 🙏 งานพวกนี้เลยกำหนดมาแล้ว ถ้าติดอะไรบอกได้ เดี๋ยวช่วยกัน\n${lines.join('\n')}`, users);
+    const msg = mentionText(`Gentle nudge 🙏 these are past their due date. If something is in the way, say so and we'll help.\n${lines.join('\n')}`, users);
     const ok = await this.line.push(group, msg, { kind: 'overdue_tag' });
     if (!ok) return 0;
     for (const t of late.slice(0, 8)) await this.team.updateTask(t.id, { overdue_tagged: today });
@@ -121,20 +121,20 @@ export class Scheduler {
       return mine.length ? `${m.nickname}: ${mine.map((t) => `${t.title} (${formatDay(t.due, today)})`).join(', ')}` : null;
     }).filter(Boolean);
     const msg = F.weeklyMessage({
-      title: 'แผนสัปดาห์นี้ 💪',
+      title: "This week's plan 💪",
       subtitle: `${formatDay(mon, today)} – ${formatDay(sun, today)}`,
       today,
       stats: [
-        { label: 'ส่งสัปดาห์นี้', value: week.length, color: '#8FD9C6' },
-        { label: 'ค้างจากก่อน', value: late.length, color: '#E8B14A' },
-        { label: 'ติดอยู่', value: blocked.length, color: '#F07560' },
+        { label: 'Due this week', value: week.length, color: '#0B5C03' },
+        { label: 'Carried over', value: late.length, color: '#B7791F' },
+        { label: 'Blocked', value: blocked.length, color: '#C8462F' },
       ],
       sections: [
-        { label: `📅 ส่งสัปดาห์นี้ (${week.length})`, lines: byPerson },
+        { label: `📅 Due this week (${week.length})`, lines: byPerson },
         { label: '🏁 Milestone', lines: ms.map((m) => `${m.title} · ${formatDay(m.date, today)}`) },
-        ...(late.length ? [{ label: `🔴 ค้างจากก่อนหน้า (${late.length})`, color: '#C8462F', lines: late.map((t) => `${t.title} (${ownersOf(t).join(', ')})`) }] : []),
-        ...(blocked.length ? [{ label: `🚧 ติดอยู่ (${blocked.length})`, color: '#C8462F', lines: blocked.map((t) => `${t.title}${t.blocker ? ': ' + t.blocker : ''}`) }] : []),
-        ...(research ? [{ label: '📋 รีเสิร์ช', lines: [research] }] : []),
+        ...(late.length ? [{ label: `🔴 Carried over (${late.length})`, color: '#C8462F', lines: late.map((t) => `${t.title} (${ownersOf(t).join(', ')})`) }] : []),
+        ...(blocked.length ? [{ label: `🚧 Blocked (${blocked.length})`, color: '#C8462F', lines: blocked.map((t) => `${t.title}${t.blocker ? ': ' + t.blocker : ''}`) }] : []),
+        ...(research ? [{ label: '📋 Feedback', lines: [research] }] : []),
       ],
     });
     const ok = await this.line.push(group, msg, { kind: 'monday' });
@@ -153,19 +153,19 @@ export class Scheduler {
     const blocked = open.filter((t) => t.status === 'blocked');
     const nextWeek = open.filter((t) => t.due && t.due > today && t.due <= addDays(mon, 13));
     const msg = F.weeklyMessage({
-      title: 'สรุปสัปดาห์ 🙌',
-      subtitle: `เสร็จ ${done.length} · ช้า ${late.length} · ติด ${blocked.length}`,
+      title: 'Week wrap-up 🙌',
+      subtitle: `${done.length} done · ${late.length} late · ${blocked.length} blocked`,
       today,
       stats: [
-        { label: 'เสร็จ', value: done.length, color: '#78D18F' },
-        { label: 'ช้า', value: late.length, color: '#E8B14A' },
-        { label: 'ติดอยู่', value: blocked.length, color: '#F07560' },
+        { label: 'Done', value: done.length, color: '#2F8F3A' },
+        { label: 'Late', value: late.length, color: '#B7791F' },
+        { label: 'Blocked', value: blocked.length, color: '#C8462F' },
       ],
       sections: [
-        { label: `✓ เสร็จสัปดาห์นี้ (${done.length})`, color: '#2F7D4A', lines: done.map((t) => `${t.title} (${ownersOf(t).join(', ')})`) },
-        { label: `🔴 ช้า (${late.length})`, color: '#C8462F', lines: late.map((t) => `${t.title} (${ownersOf(t).join(', ')}) ${relDays(diffDays(today, t.due))}`) },
-        { label: `🚧 ติดอยู่ (${blocked.length})`, color: '#C8462F', lines: blocked.map((t) => `${t.title}${t.blocker ? ': ' + t.blocker : ''}`) },
-        { label: `⏭ สัปดาห์หน้า (${nextWeek.length})`, lines: nextWeek.sort(byDue).map((t) => `${t.title} · ${formatDay(t.due, today)}`) },
+        { label: `✓ Done this week (${done.length})`, color: '#2F8F3A', lines: done.map((t) => `${t.title} (${ownersOf(t).join(', ')})`) },
+        { label: `🔴 Late (${late.length})`, color: '#C8462F', lines: late.map((t) => `${t.title} (${ownersOf(t).join(', ')}) ${relDays(diffDays(today, t.due))}`) },
+        { label: `🚧 Blocked (${blocked.length})`, color: '#C8462F', lines: blocked.map((t) => `${t.title}${t.blocker ? ': ' + t.blocker : ''}`) },
+        { label: `⏭ Next week (${nextWeek.length})`, lines: nextWeek.sort(byDue).map((t) => `${t.title} · ${formatDay(t.due, today)}`) },
       ],
     });
     const ok = await this.line.push(group, msg, { kind: 'friday' });
@@ -177,7 +177,7 @@ export class Scheduler {
     if (!group) return { skipped: 'no group' };
     const text = await this.bot.takeNotices();
     if (!text) return { sent: false };
-    const ok = await this.line.push(group, F.noticesMessage(text, 'วันนี้เสร็จแล้ว 🎉'), { kind: 'evening', low: true });
+    const ok = await this.line.push(group, F.noticesMessage(text, 'Done today 🎉'), { kind: 'evening', low: true });
     if (!ok) await this.bot.queueNotice(text);
     return { sent: ok };
   }
@@ -206,13 +206,13 @@ export function digestFor(nickname, tasks, today, reminderDays = [5, 3, 1]) {
     }
   }
   const sections = [
-    { label: '🆕 งานใหม่ถึงคุณ', tasks: fresh },
-    { label: '📌 ส่งวันนี้', tasks: todayList },
-    { label: '⏰ ใกล้ส่ง', tasks: soon },
-    { label: '🔴 เลยกำหนด', tasks: late, color: '#C8462F' },
+    { label: '🆕 New for you', tasks: fresh },
+    { label: '📌 Due today', tasks: todayList },
+    { label: '⏰ Due soon', tasks: soon },
+    { label: '🔴 Overdue', tasks: late, color: '#C8462F' },
   ];
   const actionable = [
-    ...todayList.map((t) => ({ ...t, _note: 'ส่งวันนี้' })),
+    ...todayList.map((t) => ({ ...t, _note: 'Due today' })),
     ...late.map((t) => ({ ...t, _note: relDays(diffDays(today, t.due)) })),
     ...soon.map((t) => ({ ...t, _note: relDays(diffDays(today, t.due)) })),
   ];

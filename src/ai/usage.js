@@ -126,9 +126,9 @@ export function nextReset(now = new Date()) {
   return new Date(t);
 }
 
-/** "14:00 น." or "พรุ่งนี้ 14:00 น." in the bot's time zone. */
+/** "at 14:00" or "tomorrow at 14:00" in the bot's time zone. */
 export function describeReset(resetAt, timeZone, now = new Date()) {
-  const time = new Intl.DateTimeFormat('th-TH', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(resetAt);
+  const time = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(resetAt);
   const dayOf = (d) => new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-  return dayOf(resetAt) === dayOf(now) ? `${time} น.` : `พรุ่งนี้ ${time} น.`;
+  return dayOf(resetAt) === dayOf(now) ? `at ${time}` : `tomorrow at ${time}`;
 }

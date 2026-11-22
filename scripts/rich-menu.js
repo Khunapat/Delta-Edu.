@@ -1,7 +1,7 @@
-// Put the Norse menu bar under every 1:1 chat with the bot.
+// Put the Delta menu bar under every 1:1 chat with the bot.
 //   node scripts/rich-menu.js          (reads LINE_CHANNEL_ACCESS_TOKEN from the env or .env)
 // Safe to re-run: when the menu and image are unchanged it does nothing; otherwise it
-// uploads the new menu, makes it the default, then deletes the old Norse menus.
+// uploads the new menu, makes it the default, then deletes our old menus (other menus are kept).
 // Rich menus cost no pushes.
 
 import { readFileSync, existsSync } from 'node:fs';
