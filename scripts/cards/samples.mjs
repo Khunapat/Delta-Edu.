@@ -1,6 +1,7 @@
 // Every card the bot sends, built by the real code (src/flex.js) with sample data.
 // Used by scripts/preview-cards.mjs (look) and scripts/validate-cards.mjs (LINE's validator).
 import * as F from '../../src/flex.js';
+import { payout, ladderBands, thb } from '../../src/classes.js';
 
 export const TODAY = '2026-11-16';
 const today = TODAY;
@@ -24,6 +25,7 @@ export function samples() {
     ] },
     { id: 'morning', title: 'Morning reminder 08:00 (1:1, push)', chat: 'direct', messages: F.digestMessages({
       greeting: 'Good morning Kiak ☀️', today,
+      classes: [{ date: today, time: '19:00', course: 'Thermodynamics I', brand: 'Uni', students: 6, hours: 2 }],
       sections: [{ label: '📌 Due today', tasks: [tasks[4]] }, { label: '⏰ Due soon', tasks: [tasks[0]] }, { label: '🔴 Overdue', tasks: [tasks[2]], color: '#C8462F' }],
       actionable: [{ ...tasks[2], _note: '2 days late' }, { ...tasks[0], _note: 'in 4 days' }],
     }) },
@@ -68,6 +70,19 @@ export function samples() {
     { id: 'board', title: '@Delta board', chat: 'group', you: '@Delta board', messages: [F.infoMessage({
       title: 'δelta Edu. board', sub: 'Tasks · Classes · Decisions · Meetings · Timeline', lines: ['Same data as in LINE: changes on the board are announced here by Delta.'],
       buttons: [{ type: 'uri', label: 'Open board', uri: 'https://liff.line.me/2000000000-xxxxxxxx' }],
+    })] },
+    { id: 'classes', title: '@Delta classes', chat: 'group', you: '@Delta classes', messages: [F.classesMessage([
+      { date: today, time: '19:00', course: 'Thermodynamics I', brand: 'Uni', tutor: 'Kiak', students: 6, hours: 2 },
+      { date: '2026-11-17', time: '10:00', course: 'SAT Math (Intermediate)', brand: 'LITE', tutor: 'Best', students: 4, hours: 1.5 },
+      { date: '2026-11-19', time: '13:00', course: 'IGCSE Physics 0625', brand: 'LITE', tutor: 'Kiak', students: 1, hours: 1 },
+    ], today, { boardUri: 'https://liff.line.me/2000000000-xxxxxxxx' })] },
+    { id: 'decisions', title: '@Delta decisions', chat: 'group', you: '@Delta decisions', messages: [F.decisionsMessage({
+      open: [{ title: 'Thermo I price', area: 'Courses', owner: 'Best', due: '2026-11-25' }, { title: 'Refund rules', area: 'Courses' }],
+      agreed: [{ title: 'Max 12 students per group', outcome: 'Partner meeting · 2026-11-14' }],
+    }, today, { boardUri: 'https://liff.line.me/2000000000-xxxxxxxx' })] },
+    { id: 'pay', title: 'Tutor pay (1:1, made-up ladder)', chat: 'direct', you: 'pay 7 students 10h 200', messages: [F.payMessage({
+      students: 7, hours: 10, price: 200, fmt: thb,
+      result: payout(ladderBands({ bands: [{ from: 1, to: 2, tutor: 50 }, { from: 3, to: 5, tutor: 55 }, { from: 6, to: null, tutor: 60 }] }), { students: 7, hours: 10, price: 200 }),
     })] },
     { id: 'resting', title: 'AI quota used up', chat: 'group', messages: [F.infoMessage({
       tone: 'warn', title: 'AI is resting 😴', lines: ["The AI is resting (today's free quota is used up). It's back at 15:00 😴\nButtons and commands (my tasks, team, classes, done) still work."],

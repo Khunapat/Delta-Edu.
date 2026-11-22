@@ -1,9 +1,10 @@
 // Cloud Scheduler calls /cron/tick once an hour (one job = inside the free
 // tier). Each slot runs at most once a day, so retries and extra calls are safe.
 //
-//   morning  daily private digest (one push per person, only if needed)
+//   morning  daily private digest (one push per person, only if needed: tasks to
+//            look at, or a class to teach today)
 //            + one gentle group tag for tasks overdue >= 2 days
-//   monday   plan for the week + milestones   (group)
+//   monday   plan for the week + milestones + this week's classes (group)
 //   friday   done / late / blocked            (group)
 //   evening  ✓ round-up, if nothing carried it earlier (group). Low priority:
 //            when the push budget is ahead of pace the lines wait for the next
@@ -14,6 +15,7 @@ import { ownersOf, byDue } from './team.js';
 import { addToken, hasToken } from './bot.js';
 import { mentionText } from './line.js';
 import * as F from './flex.js';
+import { classesBetween } from './classes.js';
 
 const OVERDUE_DM_DAYS = new Set([1, 2, 3, 5, 7]);
 
@@ -53,18 +55,20 @@ export class Scheduler {
   // ---- morning -------------------------------------------------------------
   async morning() {
     const today = this.team.today();
-    const [members, tasks] = await Promise.all([this.team.members(), this.team.tasks()]);
+    const [members, tasks, docs] = await Promise.all([this.team.members(), this.team.tasks(), this.boardDocs()]);
     let sent = 0;
     for (const m of members) {
       if (!m.line_user_id) continue;
       const plan = digestFor(m.nickname, tasks, today, this.cfg.reminderDays);
-      if (!plan.items.length) continue;
+      const teaching = classesBetween(docs, today, today, { tutor: m.nickname });
+      if (!plan.items.length && !teaching.length) continue;
       if ((await this.db.kvGet('lastpush:' + m.nickname, '')) === today) continue;
       const msgs = F.digestMessages({
         greeting: `Good morning ${m.nickname} ☀️`,
         today,
         sections: plan.sections,
         actionable: plan.actionable,
+        classes: teaching,
       });
       const ok = await this.line.push(m.line_user_id, msgs, { kind: 'digest' });
       if (!ok) continue;
@@ -76,6 +80,11 @@ export class Scheduler {
     }
     const tagged = await this.overdueTag(members, tasks, today);
     return { sent, tagged };
+  }
+
+  async boardDocs() {
+    if (!this.bot?.store) return {};
+    return (await this.bot.store.snapshot().catch(() => ({ docs: {} }))).docs;
   }
 
   /** One combined, gentle group message for tasks late by >= N days (once per task). */
@@ -109,7 +118,8 @@ export class Scheduler {
     const today = this.team.today();
     const mon = weekStart(today);
     const sun = addDays(mon, 6);
-    const [tasks, milestones, members] = await Promise.all([this.team.tasks(), this.team.milestones(), this.team.members()]);
+    const [tasks, milestones, members, docs] = await Promise.all([this.team.tasks(), this.team.milestones(), this.team.members(), this.boardDocs()]);
+    const classes = classesBetween(docs, mon, sun);
     const research = this.research ? await this.research.progressLine(today, addDays(today, -6)).catch(() => '') : '';
     const open = tasks.filter((t) => t.status !== 'done');
     const week = open.filter((t) => t.due && t.due >= mon && t.due <= sun).sort(byDue);
@@ -132,6 +142,7 @@ export class Scheduler {
       sections: [
         { label: `📅 Due this week (${week.length})`, lines: byPerson },
         { label: '🏁 Milestone', lines: ms.map((m) => `${m.title} · ${formatDay(m.date, today)}`) },
+        ...(classes.length ? [{ label: `📚 Classes this week (${classes.length})`, lines: classes.map((c) => `${formatDay(c.date, today)}${c.time ? ' ' + c.time : ''} · ${c.course}${c.brand ? ` (${c.brand})` : ''}${c.tutor ? ' · ' + c.tutor : ''}`) }] : []),
         ...(late.length ? [{ label: `🔴 Carried over (${late.length})`, color: '#C8462F', lines: late.map((t) => `${t.title} (${ownersOf(t).join(', ')})`) }] : []),
         ...(blocked.length ? [{ label: `🚧 Blocked (${blocked.length})`, color: '#C8462F', lines: blocked.map((t) => `${t.title}${t.blocker ? ': ' + t.blocker : ''}`) }] : []),
         ...(research ? [{ label: '📋 Feedback', lines: [research] }] : []),

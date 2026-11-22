@@ -13,6 +13,7 @@ import * as F from './flex.js';
 import { mentionText } from './line.js';
 import { readMeeting } from './ai/meeting.js';
 import { forAi, MAX_AUDIO_BYTES } from './media.js';
+import { upcomingClasses, decisionLists, ladderBands, payout, thb } from './classes.js';
 
 const DRAFT_TTL_MS = 24 * 3600_000;
 const NEW_TASK = /^(?:new task|task|งานใหม่)\s*[:：]/i;
@@ -264,6 +265,14 @@ export class Bot {
         return this.link(c, cmd.name);
       case 'board':
         return this.reply(c, this.boardCard());
+      case 'classes':
+        return this.reply(c, await this.classesCard(c, cmd.mine));
+      case 'decisions': {
+        const docs = await this.boardDocs();
+        return this.reply(c, F.decisionsMessage(decisionLists(docs), today, { boardUri: this.boardUri() }));
+      }
+      case 'pay':
+        return this.reply(c, await this.payCard(c, cmd));
       case 'meeting':
         await this.db.kvSet('await:' + c.uid, { type: 'meeting', chat: c.chatId, at: Date.now() });
         return this.reply(c, F.infoMessage({
@@ -669,12 +678,51 @@ export class Bot {
         source: 'line', created: stamp, updated: stamp,
       },
     }, { by: c.member.nickname });
+    // Each decision also lands on the Decisions page as agreed.
+    for (const [i, d] of m.decisions.entries()) {
+      await this.store.write({
+        op: 'set', path: `decisions/${m.id}-${i}`,
+        data: { title: d.slice(0, 160), area: 'Meeting', status: 'agreed', outcome: `${m.title} · ${m.date}`, owner: '', due: '', source: 'line', created: stamp, updated: stamp },
+      }, { by: c.member.nickname });
+    }
     await this.db.log(c.member.nickname, c.chat, 'meeting_saved', m.title);
     const liffId = this.cfg.board?.liffId;
     return this.reply(c, [
       F.meetingMessage(m, this.today(), { saved: true }),
       liffId ? F.textMsg('See it on the board: Meetings and Decisions pages.', F.quickReply([{ type: 'uri', label: 'Open board', uri: `https://liff.line.me/${liffId}` }])) : null,
     ]);
+  }
+
+  // ======================================================================
+  // Classes, decisions and tutor pay (board documents; no AI, no pushes)
+  async boardDocs() {
+    if (!this.store) return {};
+    return (await this.store.snapshot()).docs;
+  }
+  boardUri() { return this.cfg.board?.liffId ? `https://liff.line.me/${this.cfg.board.liffId}` : ''; }
+
+  /** "classes": the team's next 7 days; "my classes": only the sender's, next 14 days. */
+  async classesCard(c, mine) {
+    const today = this.today();
+    const docs = await this.boardDocs();
+    if (mine) {
+      const list = upcomingClasses(docs, today, 14, { tutor: c.member.nickname });
+      return F.classesMessage(list, today, { title: `${c.member.nickname}'s classes · 14 days`, empty: 'You have no classes in the next 14 days', boardUri: this.boardUri() });
+    }
+    return F.classesMessage(upcomingClasses(docs, today, 7), today, { boardUri: this.boardUri() });
+  }
+
+  /**
+   * "pay 10 students 10h 300": the tutor share by the ladder on the board. Private
+   * money talk, so only in the 1:1 chat. Never guesses a missing number.
+   */
+  async payCard(c, { students, hours, price }) {
+    if (c.chat === 'group') return F.textMsg('Pay is private: ask me in our 1:1 chat, e.g. "pay 10 students 10h 300".');
+    const bands = ladderBands((await this.boardDocs())['settings/pay']);
+    if (!bands.length) return F.textMsg('No pay ladder yet. Add the bands your partners agreed on the board (Classes page > Pay ladder), then ask again.');
+    const missing = [students == null && 'number of students', hours == null && 'hours', price == null && 'price per student-hour (THB)'].filter(Boolean);
+    if (missing.length) return F.textMsg(`I need the ${missing.join(', ')}. e.g. "pay 10 students 10h 300" (students, hours, THB per student-hour).`);
+    return F.payMessage({ students, hours, price, result: payout(bands, { students, hours, price }), fmt: thb });
   }
 
   /** Card with a button that opens the web board inside LINE (LIFF). */

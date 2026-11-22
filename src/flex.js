@@ -444,14 +444,26 @@ function taskLine(x, today) {
   ], { margin: 'md' });
 }
 
-export function digestMessages({ greeting, sections, today, actionable }) {
+export function digestMessages({ greeting, sections, today, actionable, classes = [] }) {
   const lines = [];
+  if (classes.length) {
+    lines.push(sectionHead('📚 Teaching today', classes.length, C.accent));
+    for (const c of classes.slice(0, 6)) {
+      lines.push(box('horizontal', [
+        box('vertical', [filler()], { width: '4px', backgroundColor: streamColor(c.brand), cornerRadius: 'xxl', flex: 0 }),
+        box('vertical', [
+          t(`${c.time ? c.time + ' · ' : ''}${c.course || 'Class'}`, { size: 'sm', weight: 'bold' }),
+          t([c.brand, c.students ? `${c.students} student${Number(c.students) === 1 ? '' : 's'}` : '', c.hours ? `${c.hours} h` : ''].filter(Boolean).join(' · ') || ' ', { size: 'xxs', color: C.muted }),
+        ], { flex: 1, margin: 'md' }),
+      ], { margin: 'md' }));
+    }
+  }
   for (const s of sections) {
     if (!s.tasks.length) continue;
     lines.push(sectionHead(s.label, s.tasks.length, s.color || C.ink));
     for (const x of s.tasks.slice(0, 6)) lines.push(taskLine(x, today));
   }
-  const total = sections.reduce((n, s) => n + s.tasks.length, 0);
+  const total = sections.reduce((n, s) => n + s.tasks.length, 0) + classes.length;
   const pic = banner('morning');
   const out = [flex(greeting, bubble({
     size: 'mega',
@@ -643,4 +655,90 @@ export function helpMessage(chat, botName) {
       { text: 'team', cmd: 'team' },
     ],
   });
+}
+
+// ---- classes, decisions, tutor pay (δelta Edu.) ---------------------------
+/** Brand pill for a class: Uni green, LITE gold. */
+function brandTag(name) {
+  const c = streamColor(name || 'Both');
+  return box('vertical', [t(name || '—', { size: 'xxs', weight: 'bold', color: '#FFFFFF', wrap: false })], {
+    backgroundColor: c, cornerRadius: 'xxl', paddingStart: '8px', paddingEnd: '8px', paddingTop: '2px', paddingBottom: '2px', flex: 0,
+  });
+}
+
+/** Upcoming classes grouped by day. classes: [{ date, time, end, course, brand, tutor, students, hours }] */
+export function classesMessage(classes, today, { title = 'Classes · next 7 days', empty = 'No classes in the next 7 days', boardUri = '' } = {}) {
+  const body = [];
+  let day = '';
+  for (const c of classes.slice(0, 14)) {
+    if (c.date !== day) {
+      day = c.date;
+      const n = diffDays(today, c.date);
+      body.push(t(`${n === 0 ? 'TODAY · ' : n === 1 ? 'TOMORROW · ' : ''}${formatDay(c.date, today).toUpperCase()}`, { size: 'xxs', weight: 'bold', color: C.accent2, margin: body.length ? 'xl' : undefined }));
+    }
+    body.push(box('horizontal', [
+      t(c.time || '—', { size: 'sm', weight: 'bold', color: C.accent, flex: 0, wrap: false }),
+      box('vertical', [
+        t(c.course || 'Class', { size: 'sm', weight: 'bold' }),
+        box('horizontal', [
+          brandTag(c.brand),
+          t([c.tutor, c.students ? `${c.students} student${Number(c.students) === 1 ? '' : 's'}` : '', c.hours ? `${c.hours} h` : ''].filter(Boolean).join(' · '), { size: 'xxs', color: C.muted, margin: 'sm', gravity: 'center' }),
+        ], { margin: 'xs', alignItems: 'center' }),
+      ], { flex: 1, margin: 'lg' }),
+    ], { backgroundColor: C.panel2, cornerRadius: 'md', paddingAll: '10px', margin: 'sm' }));
+  }
+  if (classes.length > 14) body.push(t(`…and ${classes.length - 14} more on the board`, { size: 'xxs', color: C.muted, margin: 'md' }));
+  if (!body.length) body.push(t(empty, { size: 'sm', color: C.muted }), t('Add classes on the board (Classes page).', { size: 'xs', color: C.faint, margin: 'sm' }));
+  const n = classes.length;
+  return flex(`${title}: ${n ? classes.slice(0, 3).map((c) => `${c.course} ${formatDay(c.date, today)} ${c.time || ''}`.trim()).join(', ') : empty}`, bubble({
+    size: 'mega',
+    header: hero({ kicker: 'δELTA EDU. · CLASSES', title, sub: n ? `${n} ${n === 1 ? 'session' : 'sessions'}` : undefined }),
+    body,
+    footer: boardUri ? [pill({ type: 'uri', label: 'Open Classes', uri: boardUri }, 'secondary')] : [],
+  }));
+}
+
+/** Open decisions (and the latest agreed ones). */
+export function decisionsMessage({ open, agreed }, today, { boardUri = '' } = {}) {
+  const item = (d, color, sub) => box('horizontal', [
+    box('vertical', [filler()], { width: '4px', backgroundColor: color, cornerRadius: 'xxl', flex: 0 }),
+    box('vertical', [
+      t(d.title, { size: 'sm', weight: 'bold' }),
+      sub ? t(sub, { size: 'xxs', color: C.muted }) : null,
+    ], { flex: 1, margin: 'md' }),
+  ], { margin: 'md' });
+  const body = [];
+  if (open.length) body.push(sectionHead('Open', open.length, C.warn));
+  for (const d of open.slice(0, 10)) body.push(item(d, C.warn, [d.area, d.owner, d.due ? `decide by ${formatDay(d.due, today)}` : ''].filter(Boolean).join(' · ')));
+  if (agreed.length) body.push(sectionHead('Agreed lately', Math.min(agreed.length, 5), C.done));
+  for (const d of agreed.slice(0, 5)) body.push(item(d, C.done, d.outcome || d.area || ''));
+  if (!body.length) body.push(t('No decisions on the board yet.', { size: 'sm', color: C.muted }), t('Meeting decisions you save land here too.', { size: 'xs', color: C.faint, margin: 'sm' }));
+  return flex(`Decisions: ${open.length} open`, bubble({
+    size: 'mega',
+    header: hero({ kicker: 'δELTA EDU. · DECISIONS', title: open.length ? `${open.length} still open` : 'Nothing open', sub: 'Provisional until the partners agree' }),
+    body,
+    footer: boardUri ? [pill({ type: 'uri', label: 'Open Decisions', uri: boardUri }, 'secondary')] : [],
+  }));
+}
+
+/** Tutor pay split from payout(): per-band rows, tutor and company totals. */
+export function payMessage({ students, hours, price, result, fmt }) {
+  const rowLine = (r) => box('horizontal', [
+    t(`Students ${r.from}${r.to == null ? '+' : r.to !== r.from ? `–${r.to}` : ''}`, { size: 'xs', color: C.accent, weight: 'bold', flex: 3 }),
+    t(`${fmt(r.fees)} × ${r.pct}%`, { size: 'xs', color: C.muted, flex: 4 }),
+    t(fmt(r.tutor), { size: 'xs', weight: 'bold', align: 'end', flex: 3 }),
+  ], { margin: 'md' });
+  return flex(`Tutor pay: ${fmt(result.tutor)} of ${fmt(result.fees)}`, bubble({
+    size: 'mega',
+    header: hero({ kicker: 'δELTA EDU. · TUTOR PAY (PROVISIONAL)', title: 'Tutor share', big: fmt(result.tutor), sub: `${students} students × ${hours} h × ${fmt(price)} = ${fmt(result.fees)}` }),
+    body: [
+      ...result.rows.map(rowLine),
+      sep('lg'),
+      box('horizontal', [
+        kpiTile('Tutor', `${result.effective}%`, C.accent, result.effective),
+        kpiTile('Company', fmt(result.company), C.warn, result.fees ? 100 - result.effective : 0),
+      ], { spacing: 'sm', margin: 'lg' }),
+      t('Follows the ladder on the board (Classes page). Base: net collected fees.', { size: 'xxs', color: C.faint, margin: 'md' }),
+    ],
+  }));
 }
