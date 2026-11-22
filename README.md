@@ -214,6 +214,12 @@ the animated banners from `scripts/banners/banners.html` (both need Playwright).
   `gcloud run services logs read norse-bot --region asia-southeast1 --limit 80`
   (each AI call logs its model and time, e.g. `gemini gemini-3.8-flash ok 2310ms`).
 
+## Working with Claude Code
+
+`CLAUDE.md` is a short briefing that Claude Code reads when a session opens this repo:
+the company, the rules, how it runs, what's built and what's open. Keep it current
+when something big changes, so a new chat can pick up where the last one stopped.
+
 ## Develop
 
 ```bash
