@@ -1,260 +1,287 @@
-# Norse: the NORSE team's LINE bot
+# Delta: the δelta Edu. team's LINE bot
 
-One LINE bot that lives in the team group and in each member's 1:1 chat.
-Tasks live in a Google Sheet (any teammate can own it). The bot is the only
-program that writes to it, and it checks every change first. Cards follow the
-look of the NORSE Project Overview dashboard.
+One LINE bot ("Delta") that lives in the δelta Edu. team group and in each
+member's 1:1 chat, plus a web board opened inside LINE. Everything is stored in
+one private Google Sheet. The bot is the only program that writes to it, and it
+checks every change first.
 
-## What MVP 1 does
+δelta Edu. is a tutoring institution with two brands: **δelta Edu.** (university:
+foundations and Chemical Engineering, tag **Uni**) and **δelta Edu. LITE**
+(international secondary: SAT, GED, IGCSE, A-Level, tag **LITE**). The bot is for
+the partners, staff and tutors only. It speaks **English**: casual, short, and
+cards with buttons rather than long text.
 
-**Team group** (the AI only runs when someone types `@Norse`)
+> Delta Edu was started as a copy of Norse, the older bot for another team.
+> **Delta Edu never touches Norse.** It has its own folder (`~/delta-edu`), `.env`,
+> Cloud Run service (`delta-edu-bot`), service account, scheduler job, LINE
+> channel and Sheet. `scripts/setup.sh` stops if anything points at Norse.
+
+## What it does
+
+**Team group** (the AI only runs when someone types `@Delta`)
 
 | Type | What happens |
 | --- | --- |
-| `@Norse บอนนี่ กับ เจ ทำ mockup กล่อง ส่งศุกร์` | A card with owners, due date and workstream, with **ยืนยัน · วันส่ง · คนทำ · ชื่องาน · หมวด · ยกเลิก**. Nothing is saved until someone taps ยืนยัน. Unknown names and unclear dates ("อาทิตย์หน้า") are asked about; the bot never guesses an owner or a date. |
-| `@Norse งานทีม` | Done / in progress / overdue / blocked tiles, who is on what, and the risk list. No AI. |
-| `@Norse hello` · `@Norse <question>` | Small talk gets a short friendly reply. Questions about NORSE are answered only from the team's data (tasks, milestones, `knowledge/norse.md` and everything written on the web board); if it isn't there, Norse says so. General questions get a short answer marked *(ความรู้ทั่วไป ไม่ใช่ข้อมูลทีม)*. |
-| `@Norse ใช้กลุ่มนี้` | (admin, once) makes this the team group. Other groups are ignored, and can't take over the role (to move it, delete the `team_group` row in the Kv tab first). |
-| `@Norse ตั้งค่า` | AI use per model today, reset time, LINE pushes used this month. |
+| `@Delta Kiak and Pure: Thermo I slides by Friday, Uni` | A task card with owners, due date and brand tag, with **Confirm · Due date · Who · Title · Brand · Cancel**. Nothing is saved until someone taps Confirm. Unknown names and unclear dates ("next week") are asked about; the bot never guesses an owner or a date. |
+| `@Delta team` | Done / doing / overdue / blocked tiles, who is on what, and the risk list. No AI. |
+| `@Delta classes` | The team's classes for the next 7 days (from the board). No AI. |
+| `@Delta decisions` | Open decisions first, then the latest agreed ones. No AI. |
+| `@Delta meeting` | Then send meeting notes as text, a voice note or a whiteboard photo (see Meeting notes). |
+| `@Delta hello` · `@Delta <question>` | Small talk gets a short reply. Questions about δelta Edu. are answered only from team data (tasks, classes, decisions, meetings, board notes, `knowledge/delta-edu.md`); if it isn't there, Delta says so. General questions get a short answer marked *(general knowledge, not team data)*. |
+| `@Delta use this group` | (admin, once) makes this the team group. Other groups are ignored and can't take over (to move it, delete the `team_group` row in the Kv tab first). |
+| `@Delta board` · `@Delta settings` · `@Delta help` | Board button · AI use and pushes this month · how to use. |
 
 **1:1 chat**
 
 | Type / tap | What happens |
 | --- | --- |
-| `ฉันคือ บอนนี่` | Links your LINE account to your team nickname or alias (once). See **Team only** below. |
-| `งานฉัน` | Your open tasks by due date, each with **เสร็จแล้ว ✓ · ขอเลื่อน (date picker) · ติดอยู่**. |
-| `mockup เสร็จแล้ว` · `ขอเลื่อนเป็นจันทร์` · `ติด supplier ยังไม่ตอบ` | Updated without AI when it's clear which task you mean; otherwise you get buttons to pick the task. |
-| `วันนี้ทำอะไรดี` | Today / overdue / due soon / blocked. |
+| `I am Kiak` | Links your LINE account to your team nickname or alias (once). See **Team only**. |
+| `my tasks` | Your open tasks by due date, each with **Done ✓ · Postpone (date picker) · Blocked**. |
+| `slides done` · `push the worksheet to monday` · `blocked, waiting for Best` | Updated without AI when it's clear which task you mean; otherwise you get buttons to pick the task. "not done yet" goes to the AI instead of closing it. |
+| `today` | Today / overdue / due soon / blocked. |
+| `new task: IGCSE worksheet by Thu` | Always a new task card, never read as an update. |
+| `my classes` | The classes you teach in the next 14 days. |
+| `pay 10 students 10h 300` | Tutor pay by the ladder set on the board (see **Tutor pay**). 1:1 only. |
 
-**Cards, not text**: lists (งานฉัน, งานทีม, digest, weekly posts, ตั้งค่า) and
-outcomes (linked, group set, done, postponed, started, blocked, the ✓ round-up,
-AI resting, help, welcome) are cards in the dashboard's dark style: mint gradient
-headers with the big number, KPI tiles with bars, a stacked status bar, workload
-bars per person, workstream stripes and stacked avatars. Each has a button for the
-next step; buttons in group cards send `@Norse …` so the bot hears them. Questions
-that need a choice (which day, who) stay short text with tap buttons.
+The old Thai words from Norse (`ฉันคือ`, `งานฉัน`, `ประชุม`…) still work, and Thai
+dates are still understood, but every reply is English.
 
-Four **animated banners** (`brand/banner-*.png`, APNG under LINE's 300 KB) top the
-welcome/linked cards, the 08:00 reminder, the done card and the weekly posts. LINE
-downloads them from the bot (`/brand/…`), so the bot needs its public address: it
-takes it from the first request Cloud Run sends it (or `PUBLIC_URL`). Until then
-cards show a gradient header instead. `setup.sh` asks LINE to validate every card
-(`npm run validate-cards`, no messages sent).
+**Menu bar** (1:1 chat only; LINE doesn't show menus in groups):
+**My tasks · Today · Team / New task · Classes · Help** (Help becomes **Board**
+once the web board is set up). Each button sends the command, so a tap costs no
+push and no AI. **New task** opens the keyboard with `new task: ` typed in.
 
-**Menu bar** (1:1 chat only; LINE doesn't show menus in groups): **งานฉัน ·
-วันนี้ทำอะไรดี · งานทีม / เพิ่มงาน · ตั้งค่า · วิธีใช้**. Each button sends the
-command, so a tap costs no push and no AI. **เพิ่มงาน** opens the keyboard with
-`งานใหม่: ` typed in; a message starting with `งานใหม่:` always makes a new
-task card and is never read as an update.
+**Cards, not text**: lists and outcomes are cards in the δelta Edu. look (deep
+green `#0B5C03`, light green, cream; LITE gold): green gradient headers with the
+big number, KPI tiles with bars, brand tags (Uni green, LITE gold, Both blue),
+stacked avatars. Buttons in group cards send `@Delta …` so the bot hears them.
+Four **animated banners** (`brand/banner-*.png`, APNG) top the welcome/linked
+cards, the 08:00 reminder, the done card and the weekly posts. LINE downloads them
+from the bot (`/brand/…`), so the bot learns its public address from the first
+request (or `PUBLIC_URL`). `setup.sh` asks LINE to validate every card
+(`npm run validate-cards`, nothing is sent).
 
-The group only sees the result: a **✓ line** (sent with the bot's next group
-reply, or in the 18:00 round-up) or the **🚧 blocked line** asking who can help.
+The group only sees results: a **✓ line** (sent with the bot's next group reply,
+or in the 18:00 round-up) or the **🚧 blocked line** asking who can help.
 
-**Reminders** (one Cloud Scheduler job, every hour on the hour from 07:00 to 21:00 Bangkok time)
+**Reminders** (one Cloud Scheduler job, every hour from 07:00 to 21:00 Bangkok time)
 
-- 08:00 private DM, **at most one push per person per day**: new tasks, due in 5/3/1 days, due today (with buttons), overdue.
+- 08:00 private DM, **at most one push per person per day**: classes you teach
+  today, new tasks, due in 5/3/1 days, due today (with buttons), overdue.
 - A new task also sends a DM right away, unless that person already got a push that day.
 - Overdue: DM first. After 2 days, one gentle `@tag` in the group, once per task.
-- Monday 09:00 plan and milestones; Friday 17:00 done / late / blocked; 18:00 ✓ round-up.
+- Monday 09:00 plan: due this week, milestones, **this week's classes**, feedback
+  form line; Friday 17:00 done / late / blocked; 18:00 ✓ round-up.
 
-**Saving AI quota**: commands and buttons never call the AI. In the group the AI
-runs only on `@Norse`. Gemini models are tried in order (`GEMINI_MODELS`); when
-all are used up, the bot says when the AI is back, and commands and buttons
-keep working.
+**Saving AI quota**: commands and buttons never call the AI (classes, decisions,
+pay, my tasks, team, today…). In the group the AI runs only on `@Delta`. Gemini
+models are tried in order (`GEMINI_MODELS`); when all are used up, the bot says
+when the AI is back, and commands and buttons keep working.
 
 **Push budget**: LINE's Thai free plan allows 300 pushes a month, and a push to
-a 3-person group counts as 3. Before every push the bot takes the higher of its
-own count and LINE's (LINE's also includes anything sent from OA Manager), and
-the lower of `PUSH_MONTHLY_LIMIT` and LINE's own quota, so it never goes over:
+a 4-person group counts as 4. Before every push the bot takes the higher of its
+own count and LINE's, and the lower of `PUSH_MONTHLY_LIMIT` and LINE's quota:
 
 - 🚧 blocked lines stop at 100%;
 - digests, new-task DMs, the overdue tag and the weekly posts stop at 90%;
-- the 18:00 ✓ round-up also waits when the month is ahead of pace (more than
-  90% × day-of-month / days-in-month used). Its ✓ lines are kept and ride on
-  the next free group reply instead.
+- the 18:00 ✓ round-up also waits when the month is ahead of pace; its ✓ lines
+  ride on the next free group reply instead.
 
-**Team only**: the bot is a public LINE account, so a nickname alone is not
-enough to get in. Before the team group exists, only an admin can link
-(`ฉันคือ Jai`), so do that right after deploying. After `@Norse ใช้กลุ่มนี้`,
-`ฉันคือ …` only works for people who are in the team group (LINE is asked
-each time). Each nickname links to one LINE account.
+**Team only**: the bot is a public LINE account, so a nickname is not enough.
+Before the team group exists, only an admin can link (`I am Jai`), so do that
+right after deploying. After `@Delta use this group`, `I am …` only works for
+people who are in the team group (LINE is asked each time). Each nickname links
+to one LINE account. Phone numbers and emails never appear in the group and are
+never sent to the AI.
+
+## Classes, decisions and tutor pay
+
+These live on the web board (documents in the Sheet's **Board** tab) and the bot
+reads them; none of them uses the AI or extra pushes.
+
+- **Classes** (board → Classes): date, time, course, brand, tutor, students,
+  hours, status. `classes` / `my classes` in LINE; tutors see today's class in
+  the 08:00 DM; the Monday post lists the week. Upcoming classes are also known
+  to the AI ("@Delta when is the next Thermo I class?").
+- **Decisions** (board → Decisions): open / agreed / dropped, area, owner,
+  decide-by date, outcome. Saving meeting notes adds their decisions as agreed.
+  `decisions` in LINE.
+- **Tutor pay**: the partners' ladder is entered on the board (Classes → Pay
+  ladder): bands like "students 1–3: tutor X%", "4–7: Y%", "13 and up: Z%". Each
+  band's % applies only to the students inside it, like tax brackets. In the 1:1
+  chat, `pay 10 students 10h 300` (students, hours, THB per student-hour) shows
+  the split per band, the tutor total, the company share and the effective %.
+  Missing numbers are asked for. The ladder is never in the code or the repo and
+  is never sent to the AI. The board has the same calculator, per class or per course.
 
 ## The Sheet
 
 The bot creates these tabs on first start (an empty Sheet is fine):
 
-- **Members**: `nickname, aliases, role, line_user_id, …`. Put `admin` in *role* for admins. *aliases* holds other spellings, comma-separated (e.g. `บอนนี่`); without them "@Norse บอนนี่ ทำ …" can't find Bonnie. On first start the tab is filled from `TEAM_SEED`, written `Nick/alias/alias:role`, e.g. `Jai/เจ:admin, Best/เบสท์, Bonnie/บอนนี่`. To re-link someone (new phone or account), clear their `line_user_id`. Contact columns are never shown in the group or sent to the AI.
-- **Tasks**: same fields as the dashboard (`title, owner, stream, status, priority, start, due, blocker, …`). You can edit rows by hand: keep `status` to todo / doing / blocked / done, and dates as `2026-11-20` or `20/11/2026`.
+- **Members**: `nickname, aliases, role, line_user_id, …`. Put `admin` in *role*
+  for admins (other roles like `founder` or `tutor` are just labels). *aliases*
+  holds other spellings, comma-separated. On first start the tab is filled from
+  `TEAM_SEED`, written `Nick/alias:role`, e.g. `Best:founder, Jai:admin, Kiak:tutor, Pure`.
+  To re-link someone (new phone or account), clear their `line_user_id`.
+- **Tasks**: `title, owner, stream (the brand tag: Uni / LITE / Both), status,
+  priority, start, due, blocker, …`. You can edit rows by hand: keep `status` to
+  todo / doing / blocked / done, and dates as `2026-11-20` or `20/11/2026`.
 - **Milestones**: `title, date, stream, done`.
+- **Board**: everything else the board keeps (classes, decisions, meetings, notes,
+  pay ladder, feedback form settings), one row per item. Leave it alone.
 - **Kv**, **Log**: the bot's own bookkeeping. Leave them alone.
 
-## Setup (about 20 minutes)
+## Setup
 
-You need: a LINE Official Account, a Google Cloud project with billing turned
-on (Cloud Run requires billing, but this stays inside the free tier), a Gemini
-key, and the Sheet.
+You need: a **new** LINE Official Account, a Google Cloud project with billing on
+(Cloud Run needs billing but this stays in the free tier; the Norse project is
+fine), a Gemini key from a separate project with **no** billing, and a **new**
+Google Sheet.
 
-1. **LINE**: Messaging API channels are no longer created in the Developers console. First create a **LINE Official Account** named `Norse` at <https://manager.line.biz/> (free plan). Then, in Official Account Manager, go to **Settings → Messaging API → Enable Messaging API** and create a provider (e.g. `NORSE`). In <https://developers.line.biz/console/>, open that channel: the **Channel secret** is under *Basic settings*, and the **Channel access token (long-lived)** is issued at the bottom of the *Messaging API* tab. Keep both on your own computer; `setup.sh` asks for them (input is hidden).
-2. **Gemini key**: <https://aistudio.google.com/apikey>. Check **Rate limits** there for the current free models, and set `GEMINI_MODELS` to match.
-3. **Sheet**: your friend creates an empty Google Sheet and copies its URL.
-4. **Deploy**: open <https://shell.cloud.google.com> on *your* Google account, then:
+1. **LINE**: create a LINE Official Account named `Delta Edu` at
+   <https://manager.line.biz/> (free plan). In Official Account Manager:
+   **Settings → Messaging API → Enable Messaging API**, with a new provider
+   (e.g. `Delta Edu`). In <https://developers.line.biz/console/>, open that
+   channel: **Channel secret** (Basic settings) and **Channel access token
+   (long-lived)** (bottom of the Messaging API tab). `setup.sh` asks for them
+   (input hidden). Never paste them in a chat.
+2. **Gemini key**: <https://aistudio.google.com/apikey>, in a project without
+   billing. Check **Rate limits** there and set `GEMINI_MODELS` to match.
+3. **Sheet**: create an empty Google Sheet and copy its URL.
+4. **Deploy** in <https://shell.cloud.google.com>:
    ```bash
-   git clone <this repo> norse-bot && cd norse-bot
-   ./scripts/setup.sh
+   git clone <this repo> ~/delta-edu && cd ~/delta-edu
+   SERVICE=delta-edu-bot ./scripts/setup.sh
    ```
-   The script asks for the values above, enables the APIs, creates the service account `norse-bot@<project>.iam.gserviceaccount.com`, deploys to Cloud Run, creates the hourly job and sets the LINE webhook.
-5. **Share the Sheet**: the Sheet's owner shares it with that service-account email as **Editor** (untick *Notify people*). Then open `<URL>/health`: it should say `"ok":true`. (Cloud Run reserves paths ending in `z`, so it is not `/healthz`.)
-6. **LINE settings**:
-   - Developers console: turn on **Use webhook** and **Allow bot to join group chats**.
-   - Official Account Manager: turn off **auto-reply** and **greeting** messages.
-7. In this order: the admin adds the bot as a friend and sends `ฉันคือ <ชื่อเล่น>`; adds the bot to the team group and types `@Norse ใช้กลุ่มนี้`; then everyone else adds the bot as a friend and sends `ฉันคือ <ชื่อเล่น>`.
+   It asks for the values above (kept in `~/delta-edu/.env`, never committed),
+   enables the APIs, creates the service account
+   `delta-edu-bot@<project>.iam.gserviceaccount.com`, deploys to Cloud Run,
+   creates the hourly job `delta-edu-bot-tick`, sets the webhook and the menu bar,
+   and validates every card with LINE.
+5. **Share the Sheet** with that service-account email as **Editor**. Then open
+   `<URL>/health`: it should say `"ok":true`.
+6. **LINE settings**: Developers console → **Use webhook** on, **Allow bot to
+   join group chats** on. Official Account Manager → **auto-reply** and
+   **greeting** messages off.
+7. In this order: the admin adds the bot as a friend and sends `I am Jai`; adds
+   the bot to the team group and types `@Delta use this group`; everyone else
+   joins the group, adds the bot and sends `I am <nickname>`.
 
-Re-run `./scripts/setup.sh` to deploy new code.
+To update: `cd ~/delta-edu && git pull && SERVICE=delta-edu-bot ./scripts/setup.sh`.
+Logs: `gcloud run services logs read delta-edu-bot --region asia-southeast1 --limit 80`.
 
-## Web board (the team dashboard, inside LINE)
+## Web board (inside LINE)
 
-The NORSE Project Overview dashboard is hosted by the same Cloud Run service at
-`/board` and reads and writes **the same Sheet** as the bot:
+Hosted by the same Cloud Run service at `/board`, on **the same Sheet** as the
+bot. Pages: **Home** (KPIs, this week's classes, next milestone, open decisions),
+**Tasks** (brand filter, kanban), **Classes** (schedule, tutor pay calculator,
+pay ladder), **Decisions**, **Meetings**, **Timeline**, **Notes** (private team
+notes the AI reads), **Feedback** (Google Form summary). English, phone first.
 
-- A task made in LINE (`@Norse …`, `งานใหม่: …`) shows on the board within ~8 seconds.
-- A task made or edited on the board gets the same LINE treatment: new owners get
-  a private DM (same once-a-day rule), done → ✓ line in the group, blocked → 🚧
-  card in the group, and the 08:00 reminders (5/3/1 days, today, overdue).
-- Tasks and milestones are the Tasks and Milestones tabs. Everything else the board
-  keeps (contacts, interviews, orders, canvas, sources, settings) is in the **Board**
-  tab, one row per item. Leave that tab alone.
+- A task made in LINE shows on the board within ~8 seconds; a task made or edited
+  on the board gets the same LINE treatment (new owner DM, ✓ line, 🚧 card,
+  reminders).
 - Sign-in is LINE (a LIFF app). Only linked team members get in; the session is a
-  signed cookie checked on every request. Contacts' phone and email are only
-  visible on the board, never in the group or to the AI.
-- It opens from the menu bar's **แดชบอร์ด** button, or `บอร์ด` / `@Norse บอร์ด`.
+  signed cookie. The board gets a read-only member list (nickname, role) and never
+  sees LINE user ids.
 
-**Setting it up (once, about 10 minutes)**
+**Setting it up (once)**
 
-1. LINE Developers console → provider **NORSE** (the bot's provider, so user ids match)
-   → **Create a new channel → LINE Login**. Region Thailand, app type **Web app**,
-   name e.g. `Norse Board`.
-2. In that channel, **LIFF** tab → **Add**: size **Full**, endpoint URL
-   `https://<service-url>/board`, scopes **openid** and **profile**. Bot link
-   feature: **On (Normal)** with the Norse account.
-3. Click **Publish** on the channel (top of the page). While it says *Developing*,
-   only the channel's admins can sign in.
-4. Copy the **Channel ID** (Basic settings) and the **LIFF ID** (LIFF tab).
-5. In Cloud Shell: `./scripts/setup.sh` and paste them when asked. The menu bar's
-   last button switches from วิธีใช้ to แดชบอร์ด.
+1. LINE Developers console → the **Delta Edu** provider (the bot's provider, so
+   user ids match) → **Create a new channel → LINE Login**, app type **Web app**,
+   name `Delta Edu Board`.
+2. **LIFF** tab → **Add**: size **Full**, endpoint `https://<service-url>/board`,
+   scopes **openid** and **profile**, bot link feature **On (Normal)**.
+3. **Publish** the channel (while *Developing*, only its admins can sign in).
+4. Copy the **Channel ID** and the **LIFF ID**, re-run `setup.sh` and paste them.
+   The menu bar's last button becomes **Board**.
 
-`board/index.html` is the dashboard page as built on claude.ai, kept as close to the
-original as possible. `src/board/routes.js` adds `board/client.js` (a stand-in for
-the claude.ai runtime: same `db`/`user` calls, backed by `/api/board/*`) and swaps
-the email wording for LINE. To update the page, replace `board/index.html` and run
-the tests: they fail if a swapped sentence no longer matches.
+`board/index.html` is a single file (no build step). `src/board/routes.js` puts
+`board/client.js` (the `db`/`user` runtime backed by `/api/board/*`) before the
+page's script and the wordmark (`brand/delta-logo.svg`) in the sidebar.
 
 ## Meeting notes
 
-Type **`ประชุม`** (in the group: `@Norse ประชุม`), then send the notes within 30
-minutes as **text**, a **voice note** or a **photo of the whiteboard / notebook**; or
-type it in one go: `บันทึกประชุม: …`. One AI call (Gemini reads Thai/English text,
-audio and images) returns a **meeting card**: summary, ✓ decisions, → action items with
-owners and dates, ? open questions, with **บันทึกลงบอร์ด / ยกเลิก**. Action items also
-come as the usual task cards (unknown names and unclear dates are asked about).
-Saving puts the meeting on the web board's **Meetings & Decisions** page, where Norse
-can answer questions about it later. Nothing is saved without a tap.
+Type **`meeting`** (group: `@Delta meeting`), then within 30 minutes send the
+notes as **text**, a **voice note** or a **photo of the whiteboard / notebook**;
+or in one go: `meeting notes: …`. One AI call returns a **meeting card**
+(summary, ✓ decisions, → action items, ? open questions; always in English) with
+**Save to board / Cancel**. Action items come as the usual task cards. Saving puts
+the meeting on the board's Meetings page and its decisions on the Decisions page.
+Photos and voice notes are only read after `meeting`, and only from the person
+who asked. Voice notes are converted with ffmpeg (in the Docker image).
 
-Photos and voice notes are only read after `ประชุม`, and only from the person who
-asked (in the group, everyone else's photos stay chat). LINE voice notes (m4a) are
-converted to Ogg/Opus with ffmpeg, which the Docker image installs. If reading takes
-longer than LINE's reply window, the result arrives as one push to the same chat.
+## Feedback form (Google Form)
 
-## Research (Google Form)
+On the board's **Feedback** page, paste the link of the Sheet that collects the
+Form's responses and share it with the service account as **Viewer**. The bot
+reads it hourly and fills the page (charts per question). Columns with contact
+details or names are skipped; written answers are scrubbed of phone numbers and
+emails. The Monday post gets one line, and `@Delta sum up the feedback form`
+answers from the same summary.
 
-On the web board's **Research** page, link the Sheet that collects the Form's
-responses (Google Forms → Responses → Link to Sheets) and share that Sheet with
-the bot's service account as **Viewer**. The bot then reads it every hour (and right
-after the link is saved) and fills the page: responses toward the target, answers per
-day, and a chart per question (single choice, multiple choice, 1–5 scale, number or
-written answers). Columns with contact details or names are skipped entirely, and
-written answers are scrubbed of phone numbers and emails (`src/research.js`).
-The Monday post gets one research line (survey total and the last 7 days, interviews
-done), and `@Norse สรุปผลแบบสอบถาม` answers from the same summary.
+## What Delta knows
 
-## What Norse knows
+For questions, the AI gets the task list, milestones, **`knowledge/delta-edu.md`**
+(public facts only: brands, courses, approach, team roles; edit and redeploy) and
+from the board: team **Notes**, **Decisions**, **Meetings**, upcoming **Classes**
+and the feedback summary (`src/knowledge.js`, up to ~9,000 characters). **This
+repo is public**: private facts (equity, the pay ladder, prices not agreed yet,
+open partner decisions, the roadmap) go on the board's Notes page, never in this
+repo. Contacts are never sent; phone numbers and emails are masked.
 
-For questions, the AI gets the task list, milestones, **`knowledge/norse.md`** (the
-basics: brand, prototypes, research goal, the no-health-claims rule; edit it and
-redeploy to teach Norse more) and the web board's notes: brand page, business model
-canvas, meetings and decisions, interviews, competitors, suppliers, product roadmap,
-marketing, budget and the research summary (`src/knowledge.js`, up to ~9,000
-characters). Contacts are never included, contact fields (email, phone, LINE…) are
-dropped and anything that looks like a phone number or email is masked first.
+## Brand files
 
-## Logo
-
-`brand/norse-logo.svg` is the NORSE wordmark as a vector (traced from the brand
-image; `fill="currentColor"`, so it takes the text colour where it is used). The
-board's sidebar and tab icon, and the menu bar's hero tile, use it. Files for LINE
-(upload them by hand; LINE has no API for these):
+Recreated from the institution deck: `brand/delta-logo.svg` (one-line wordmark,
+`fill="currentColor"`), `brand/icon.svg`, and for LINE (upload by hand):
 
 | File | Where |
 | --- | --- |
-| `brand/line-profile.png` (640×640) | Official Account Manager → Settings → Account settings → profile picture |
+| `brand/line-profile.png` (640×640) | Official Account Manager → Account settings → profile picture |
 | `brand/line-cover.png` (1080×878) | Official Account Manager → Business profile → cover photo |
-| `brand/icon-512.png` | LINE Developers → the LINE Login channel → Basic settings → App icon (shown when signing in to the board) |
-| `brand/line-profile-dark.png` | alternative dark profile picture |
+| `brand/icon-512.png` | LINE Login channel → Basic settings → App icon |
+| `brand/line-profile-dark.png` | alternative profile picture |
 
-`npm run brand:render` redraws them from the SVG, and `npm run banners:render` redraws
-the animated banners from `scripts/banners/banners.html` (both need Playwright).
+`npm run brand:render`, `npm run banners:render` and `npm run rich-menu:render`
+redraw them (need Playwright; shared shapes in `scripts/brand/slab.mjs`).
 
 ## When something is slow or silent
 
-- Every AI call has a time limit (20 s per model, ~45 s in all); a slow or stuck
-  model is skipped for the next one in `GEMINI_MODELS`, and if all are too slow the
-  bot says "AI คิวแน่น ลองใหม่". Gemini 3 models are asked to think "low" so short
-  answers stay quick. Google Sheets calls give up after 20 s.
+- Every AI call has a time limit (20 s per model, ~45 s in all); slow models are
+  skipped for the next one in `GEMINI_MODELS`. Google Sheets calls give up after 20 s.
 - An answer that arrives after LINE's reply window is sent as one push instead.
-- To see what happened, in Cloud Shell:
-  `gcloud run services logs read norse-bot --region asia-southeast1 --limit 80`
-  (each AI call logs its model and time, e.g. `gemini gemini-3.8-flash ok 2310ms`).
-
-## Working with Claude Code
-
-`CLAUDE.md` is a short briefing that Claude Code reads when a session opens this repo:
-the company, the rules, how it runs, what's built and what's open. Keep it current
-when something big changes, so a new chat can pick up where the last one stopped.
+- Logs: see Setup.
 
 ## Develop
 
 ```bash
 npm install
-npm test          # 67 tests, no network
+npm test          # 84 tests, no network
 npm run preview   # cards.html: every card (real code, sample data) as LINE lays it out
 ```
 
 Without `SHEET_ID` the bot uses an in-memory sheet (data is lost on restart).
 
-**Menu bar**: `setup.sh` uploads it. To change it, edit `src/richmenu.js`
-(buttons) and `scripts/rich-menu/menu.html` (look), run `npm run rich-menu:render`
-(needs Playwright) to redraw `menu.png` and `menu-board.png`, commit, then `npm run rich-menu` in
-Cloud Shell. Re-running with no changes does nothing.
-
 ## Code map
 
-- `src/bot.js`: group and 1:1 handling, drafts, buttons, task updates
+- `src/bot.js`: group and 1:1 handling, drafts, buttons, task updates, classes / decisions / pay commands
+- `src/classes.js`: classes, decisions and the progressive pay ladder (pure helpers)
 - `src/scheduler.js`: daily digest, overdue tag, weekly posts, evening round-up
-- `src/flex.js`: cards in the dashboard style; `scripts/cards/`: sample cards + a LINE-like renderer for previews
-- `src/dates.js`: Thai dates ("ศุกร์หน้า", "20 พ.ย.", ambiguous phrases become questions)
-- `src/ai/meeting.js`, `src/media.js`: meeting notes (prompt + schema), images and voice notes for the AI
-- `src/research.js`: Google Form responses → the board's Research page and the Monday line
-- `src/knowledge.js`, `knowledge/norse.md`: what the AI knows about NORSE for questions
+- `src/flex.js`: cards in the δelta Edu. style; `scripts/cards/`: sample cards + a LINE-like preview
+- `src/dates.js`: English and Thai dates ("next fri", "20 Nov", "ศุกร์หน้า"); ambiguous ones become questions; "SAT" is never Saturday
 - `src/rules.js`: commands and update phrases that need no AI
-- `src/ai/`: Gemini / Claude providers, model fallback, usage counter, prompt + JSON schema
-- `src/sheets.js`, `src/team.js`: the Sheet as a database; members and tasks
+- `src/ai/`: Gemini / Claude providers, model fallback, usage counter, prompts + JSON schemas (`brain.js`, `meeting.js`)
+- `src/knowledge.js`, `knowledge/delta-edu.md`: what the AI knows for questions
+- `src/research.js`: Google Form responses → the board's Feedback page
+- `src/sheets.js`, `src/team.js`: the Sheet as a database; members, tasks, brand tags
 - `src/line.js`: replies, counted pushes, @mentions
-- `src/richmenu.js`, `scripts/rich-menu.js`, `scripts/rich-menu/`: the 1:1 menu bar (buttons, upload script, design + PNG)
-- `src/board/`: the web board: `store.js` (documents ↔ Sheet), `auth.js` (LINE Login, cookie), `routes.js`; `board/`: the page and `client.js`
+- `src/richmenu.js`, `scripts/rich-menu.js`, `scripts/rich-menu/`: the 1:1 menu bar
+- `src/board/`: `store.js` (documents ↔ Sheet), `auth.js` (LINE Login, cookie), `routes.js`; `board/`: the page and `client.js`
 - `src/app.js`: HTTP routes (`/webhook`, `/health`, `/cron/tick`); `src/index.js` wires it all up
+- `scripts/setup.sh`: deploy (with the Norse guard)
 
-## Next (MVP 2–3)
+## Ideas for later
 
-- ~~Meeting notes (text, voice, whiteboard photo) → decisions and action items to confirm~~ done (see Meeting notes)
-- ~~Research: progress toward 20 interviews and a Google Form summary~~ done (see Research)
-- Private interview notes, receipts → expenses, supplier quotes
-- ~~A LIFF board inside LINE, reading the same Sheet~~ done (see Web board)
+- Enrollment pipeline per course (leads → paid), feeding class sizes and pay
+- Student feedback form per course, summarised after each cohort
+- Receipt photo → expense; tutor hours log per month
