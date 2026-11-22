@@ -21,7 +21,7 @@ test('pay ladder: progressive like tax brackets, never a flat rate', () => {
   const gap = payout(ladderBands({ bands: [{ from: 1, to: 2, tutor: 50 }] }), { students: 4, hours: 1, price: 100 });
   assert.equal(gap.tutor, 100);
   assert.equal(gap.company, 300);
-  assert.equal(thb(19500), 'THB 19,500');
+  assert.equal(thb(12345), 'THB 12,345');
 });
 
 test('pay ladder: broken or missing bands are ignored, never invented', () => {

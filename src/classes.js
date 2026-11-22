@@ -63,5 +63,5 @@ export function payout(bands, { students, hours, price }) {
 }
 const round2 = (x) => Math.round(x * 100) / 100;
 
-/** "THB 19,500" */
+/** "THB 12,345" */
 export const thb = (n) => `THB ${Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
