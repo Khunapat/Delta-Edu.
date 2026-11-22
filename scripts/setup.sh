@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# One-shot setup for the NORSE bot on YOUR Google Cloud project.
+# One-shot setup for the Delta Edu bot ("Delta") on YOUR Google Cloud project.
 # Run it in Google Cloud Shell (https://shell.cloud.google.com): gcloud, node and
 # git are already there and you are logged in.
 #
-#   ./scripts/setup.sh
+#   cd ~/delta-edu && SERVICE=delta-edu-bot ./scripts/setup.sh
+#
+# Delta Edu lives next to the older Norse bot and must never touch it: its own
+# folder, .env, Cloud Run service, service account, scheduler job, LINE channel
+# and Sheet. The guard below stops if anything points at Norse.
 #
 # It asks for what is missing, then: enables the APIs, creates the bot's
 # service account, deploys to Cloud Run, creates ONE hourly Cloud Scheduler job
@@ -12,7 +16,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-SERVICE="${SERVICE:-norse-bot}"
+SERVICE="${SERVICE:-delta-edu-bot}"
 REGION="${REGION:-asia-southeast1}"
 JOB="${SERVICE}-tick"
 ENV_FILE=".env"
@@ -20,6 +24,16 @@ ENV_FILE=".env"
 bold() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 note() { printf '   %s\n' "$*"; }
 die()  { printf '\033[31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+
+# ---- guard: never deploy over the Norse bot ----
+case "$(printf '%s' "$SERVICE" | tr '[:upper:]' '[:lower:]')" in
+  *norse*) die "SERVICE=$SERVICE looks like the Norse bot. Delta Edu must use its own service: SERVICE=delta-edu-bot" ;;
+esac
+grep -q '"name": "delta-edu-bot"' package.json || die "This folder is not the Delta Edu bot (package.json). Run it from ~/delta-edu."
+if [ -f "$ENV_FILE" ] && grep -qiE '^BOT_NAME=norse' "$ENV_FILE"; then
+  die ".env here has BOT_NAME=Norse: this is the Norse settings file. Delta Edu needs its own .env in ~/delta-edu."
+fi
+[ -z "${SETUP_GUARD_ONLY:-}" ] || { echo "guard ok: $SERVICE"; exit 0; }
 
 command -v gcloud >/dev/null || die "gcloud is not installed. Open https://shell.cloud.google.com and run this there."
 command -v node   >/dev/null || die "node is not installed."
@@ -58,10 +72,10 @@ if [ -z "$(getenv SHEET_ID)" ]; then
   v="$(printf '%s' "$v" | sed -E 's#.*/spreadsheets/d/([^/]+).*#\1#')"
   [ -n "$v" ] || die "SHEET_ID is required."; setenv SHEET_ID "$v"
 fi
-ask TEAM_SEED      "Team nicknames with other spellings, admin marked, e.g. 'Jai/เจ:admin, Best/เบสท์, Bonnie/บอนนี่'"
+ask TEAM_SEED      "Team nicknames, roles after ':' and admin marked, e.g. 'Best:founder, Jai:admin, Kiak:tutor, Pure'"
 ask GEMINI_API_KEY "Gemini API key (free: https://aistudio.google.com/apikey), Enter to skip" secret optional
 ask ANTHROPIC_API_KEY "Claude API key (paid, optional), Enter to skip" secret optional
-[ -n "$(getenv BOT_NAME)" ]      || setenv BOT_NAME "Norse"
+[ -n "$(getenv BOT_NAME)" ]      || setenv BOT_NAME "Delta"
 [ -n "$(getenv TIMEZONE)" ]      || setenv TIMEZONE "Asia/Bangkok"
 [ -n "$(getenv GEMINI_MODELS)" ] || setenv GEMINI_MODELS "gemini-3.8-flash,gemini-3.6-flash,gemini-3-flash,gemini-2.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
 [ -n "$(getenv CRON_SECRET)" ]   || setenv CRON_SECRET "$(node -e 'console.log(require("crypto").randomBytes(16).toString("hex"))')"
@@ -75,7 +89,7 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregi
   cloudscheduler.googleapis.com sheets.googleapis.com >/dev/null
 SA="${SERVICE}@${PROJECT}.iam.gserviceaccount.com"
 gcloud iam service-accounts describe "$SA" >/dev/null 2>&1 || \
-  gcloud iam service-accounts create "$SERVICE" --display-name "NORSE LINE bot" >/dev/null
+  gcloud iam service-accounts create "$SERVICE" --display-name "Delta Edu LINE bot" >/dev/null
 note "service account: $SA"
 # Let you deploy Cloud Run "as" the bot's account. A new service account takes a
 # little while to appear everywhere in Google Cloud, so retry for up to ~2 min.
@@ -138,9 +152,9 @@ bold "Almost done. In the browser:"
 note "1. LINE Developers > Messaging API: turn ON 'Use webhook' and 'Allow bot to join group chats'."
 note "2. LINE Official Account Manager > Response settings: turn OFF auto-reply and greeting messages."
 note "3. Share the Sheet with $SA as Editor (if not done)."
-note "4. The admin adds the bot as a friend and sends:  ฉันคือ <ชื่อเล่น>"
-note "5. Add the bot to the team LINE group; the admin types:  @$(getenv BOT_NAME) ใช้กลุ่มนี้"
-note "6. Everyone else adds the bot as a friend and sends:  ฉันคือ <ชื่อเล่น>"
+note "4. The admin adds the bot as a friend and sends:  I am <nickname>"
+note "5. Add the bot to the team LINE group; the admin types:  @$(getenv BOT_NAME) use this group"
+note "6. Everyone else joins the group, adds the bot as a friend and sends:  I am <nickname>"
 if [ -n "$(getenv LIFF_ID)" ]; then
   note "7. Web board: https://liff.line.me/$(getenv LIFF_ID)  (LIFF endpoint must be $URL/board)"
 else

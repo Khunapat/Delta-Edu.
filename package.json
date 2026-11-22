@@ -1,7 +1,7 @@
 {
-  "name": "norse-bot",
+  "name": "delta-edu-bot",
   "version": "0.1.0",
-  "description": "NORSE team LINE bot: tasks, reminders and project questions for the team group and each member's 1:1 chat",
+  "description": "Delta Edu team LINE bot (\"Delta\"): tasks, classes, decisions, reminders and team questions for the team group and each member's 1:1 chat",
   "main": "src/index.js",
   "type": "module",
   "private": true,
